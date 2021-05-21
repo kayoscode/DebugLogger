@@ -7,6 +7,15 @@
 #include <string>
 #include <stdarg.h>
 
+constexpr int OUTPUTFORMAT_DECIMAL = 0;
+constexpr int OUTPUTFORMAT_HEX = 1;
+constexpr int OUTPUTFORMAT_UPPERHEX = 2;
+constexpr int OUTPUTFORMAT_BIN = 3;
+constexpr int CAPITALIZEDFORMAT_NONE = 0;
+constexpr int CAPITALIZEDFORMAT_CAPS = 1;
+constexpr int CAPITALIZEDFORMAT_LOWER = 2;
+
+
 /**
  * Levels for debugging
  * NONE: nothing is output
@@ -67,12 +76,15 @@ class DebugLogger {
 
             //short pnemoincs
             reserves["short"] = Token::TokenType::SIGNED_SHORT;
+            reserves["ushort"] = Token::TokenType::SIGNED_SHORT;
 
             //int pnemonics
             reserves["int"] = Token::TokenType::SIGNED_INT;
+            reserves["uint"] = Token::TokenType::SIGNED_INT;
 
             //long pneumonics
             reserves["long"] = Token::TokenType::SIGNED_LONG;
+            reserves["ulong"] = Token::TokenType::SIGNED_LONG;
 
             //float pnemoinics
             reserves["float"] = Token::TokenType::FLOAT;
@@ -191,6 +203,9 @@ class DebugLogger {
         struct Token {
             enum class TokenType {
                 CAPITAL,
+                LOWER,
+                RIGHT,
+                FILL_ZERO,
                 VARIABLE_NAME,
                 FLOAT,
                 UNSIGNED_MARK,
@@ -235,6 +250,27 @@ class DebugLogger {
 
             if(format[index] == '^') {
                 currentToken.type = Token::TokenType::CAPITAL;
+                currentToken.lexemeStart = format + index;
+                currentToken.lexemeEnd = format + index + 1;
+                index++;
+                return true;
+            }
+            if(format[index] == '0') {
+                currentToken.type = Token::TokenType::FILL_ZERO;
+                currentToken.lexemeStart = format + index;
+                currentToken.lexemeEnd = format + index + 1;
+                index++;
+                return true;
+            }
+            if(format[index] == '$') {
+                currentToken.type = Token::TokenType::LOWER;
+                currentToken.lexemeStart = format + index;
+                currentToken.lexemeEnd = format + index + 1;
+                index++;
+                return true;
+            }
+            if(format[index] == '>') {
+                currentToken.type = Token::TokenType::RIGHT;
                 currentToken.lexemeStart = format + index;
                 currentToken.lexemeEnd = format + index + 1;
                 index++;
@@ -310,15 +346,19 @@ class DebugLogger {
         }
 
         void printVariable(const char* format, int& index, va_list args) {
-            bool capitalized = false;
+            //0 for no change, 1 for upper, 2 for lower
+            int capitalized = CAPITALIZEDFORMAT_NONE;
             bool rightAligned = false;
             bool unsignedValue = false;
             std::string variableName;
             int setSpaceCount = -1;
             int setSpaceCount_dec = -1;
+            bool fillZero = false;
 
             //0 = decimal, 1 = hex, 2 = upper hex, 3 = binary
-            int outputFormat = 0;
+            int outputFormat = OUTPUTFORMAT_DECIMAL;
+
+            bool foundDecimal = false;
 
             //implement variable grammar here
             index++;
@@ -328,28 +368,46 @@ class DebugLogger {
                 }
 
                 if(currentToken.type == Token::TokenType::CAPITAL) {
-                    capitalized = true;
+                    capitalized = CAPITALIZEDFORMAT_CAPS;
                 }
-                //else if(currentToken.type == Token::TokenType::RIGHT_ALIGN)
+                else if(currentToken.type == Token::TokenType::LOWER) {
+                    capitalized = CAPITALIZEDFORMAT_LOWER;
+                }
+                else if(currentToken.type == Token::TokenType::RIGHT) {
+                    rightAligned = true;
+                }
+                else if(currentToken.type == Token::TokenType::FILL_ZERO) {
+                    fillZero = true;
+                }
                 else if(currentToken.type == Token::TokenType::NUMBER) {
-                    //space counts
+                    int value = 0;
+                    std::string lexeme(currentToken.lexemeStart, currentToken.lexemeEnd);
+                    value = std::stoi(lexeme);
+
+                    if(foundDecimal) {
+                        foundDecimal = false;
+                        setSpaceCount_dec = value;
+                    }
+                    else {
+                        setSpaceCount = value;
+                    }
                 }
                 else if(currentToken.type == Token::TokenType::DECIMAL) {
-                    //set space counts before and after decimal
+                    foundDecimal = true;
                 }
                 else if(currentToken.type == Token::TokenType::UNSIGNED_MARK) {
                     unsignedValue = true;
                 }
                 else if(currentToken.type == Token::TokenType::HEX_MODIFIER) {
-                    outputFormat = 1;
+                    outputFormat = OUTPUTFORMAT_HEX;
                 }
                 else if(currentToken.type == Token::TokenType::CAPITAL_HEX_MODIFIER) {
-                    outputFormat = 2;
+                    outputFormat = OUTPUTFORMAT_UPPERHEX;
                 }
                 else if(currentToken.type == Token::TokenType::BINARY_MODIFIER) {
-                    outputFormat = 3;
+                    outputFormat = OUTPUTFORMAT_BIN;
                 }
-                else if(currentToken.type == Token::TokenType::VARIABLE_NAME) {
+                else {
                     variableName = std::string(currentToken.lexemeStart, currentToken.lexemeEnd);
                 }
 
@@ -371,27 +429,31 @@ class DebugLogger {
                     case DebugVarType::INTEGER32:
                         {
                             uint32_t value = var->second.getInt32();
-                            printFormattedInteger(value, rightAligned, setSpaceCount, outputFormat);
+                            printFormattedInteger(value, rightAligned, setSpaceCount, outputFormat, unsignedValue, fillZero, false);
                         }
                         break;
                     case DebugVarType::INTEGER64:
                         {
-                            uint64_t value = var->second.getInt32();
+                            uint64_t value = var->second.getInt64();
+                            printFormattedInteger(value, rightAligned, setSpaceCount, outputFormat, unsignedValue, fillZero, true);
                         }
                         break;
                     case DebugVarType::FLOAT32:
                         {
                             float value = var->second.getFloat32();
+                            printFormattedFloat(value, rightAligned, setSpaceCount, setSpaceCount_dec, fillZero);
                         }
                         break;
                     case DebugVarType::FLOAT64:
                         {
                             double value = var->second.getFloat64();
+                            printFormattedFloat(value, rightAligned, setSpaceCount, setSpaceCount_dec, fillZero);
                         }
                         break;
                     case DebugVarType::STRING:
                         {
                             const char* value = var->second.getString();
+                            printFormattedString(value, capitalized, rightAligned, setSpaceCount);
                         }
                         break;
                 }
@@ -399,12 +461,175 @@ class DebugLogger {
             //otherwise skip printing and continue (for now, perhaps an error msg in the print string)
         }
 
-        void printFormattedInteger(uint32_t value, bool right, int space, int outputFormat) {
+        /**
+         * Reverses a string
+         * @param buffer the buffer to reverse
+         * @param len the length of the contents of the string
+         * */
+        void reverseString(char* buffer, int len) {
+            //reverse the string in place
+            char* begin = buffer, *end = buffer + len - 1;
+
+            while(begin < end) {
+                char tmp = *begin;
+                *begin = *end;
+                *end = tmp;
+                begin++;
+                end--;
+            }
         }
 
-        void printFormattedChar(char value, bool cap, bool right, int space) {
-            if(cap) {
+        /**
+         * Prints hex to a buffer
+         * @param spaces indicates the min number of digits
+         * @param fill the character to fill the empty spaces with
+         * @return the length of the string
+         * */
+        int printHexToBuffer(char* buffer, uint64_t value, bool upperFlag) {
+            char hexChars[] = "0123456789abcdef";
+            char capHexChars[] = "0123456789ABCDEF";
+            char* charset = upperFlag? capHexChars : hexChars;
+            int index = 0;
+
+            do{
+                int digit = value % 16;
+                buffer[index++] = charset[digit];
+                value /= 16;
+            } while(value);
+
+            buffer[index] = 0;
+            reverseString(buffer, index);
+            return index;
+        }
+
+        int printBinToBuffer(char* buffer, uint64_t value) {
+            char charset[3] = "01";
+            int index = 0;
+
+            do {
+                int digit = value % 2;
+                buffer[index++] = charset[digit];
+                value /= 2;
+            } while(value);
+            
+            buffer[index] = 0;
+            reverseString(buffer, index);
+            return index;
+        }
+
+        void printFormattedFloat(double value, bool right, int spaces, int decSpaces, bool fillZero) {
+            std::string format = "%";
+            if(fillZero) {
+                format += '0';
+            }
+
+            format += std::to_string(spaces);
+
+            if(decSpaces > 0) {
+                format += ".";
+                format += std::to_string(decSpaces);
+            }
+
+            format += "f";
+
+            char buffer[129];
+            buffer[128] = 0;
+            int len = sprintf_s(buffer, 128, format.c_str(), value);
+
+            printf("%s", buffer);
+        }
+
+        void printFormattedStringRaw(const char* toPrint, int cap, int len) {
+            for(int i = 0; i < len; ++i) {
+                char next = toPrint[i];
+
+                if(cap == CAPITALIZEDFORMAT_CAPS) {
+                    next = std::toupper(next);
+                }
+                else if(cap == CAPITALIZEDFORMAT_LOWER) {
+                    next = std::tolower(next);
+                }
+
+                printf("%c", next);
+            }
+        }
+
+        void printFormattedString(const char* toPrint, int cap, bool right, int space) {
+            int len = (int)strlen(toPrint);
+
+            if(right) {
+                for(int i = 0; i < space - len; ++i) {
+                    printf(" ");
+                }
+
+                printFormattedStringRaw(toPrint, cap, len);
+            }
+            else {
+                printFormattedStringRaw(toPrint, cap, len);
+
+                for(int i = 0; i < space - len; ++i) {
+                    printf(" ");
+                }
+            }
+        }
+
+        void printFormattedInteger(uint64_t value, bool right, int space, int outputFormat, bool unsignedMark, bool fillZero, bool longlong) {
+            char buffer[129];
+            buffer[128] = 0;
+            int len = 0;
+
+            //print 32 bit integer
+            if(outputFormat == OUTPUTFORMAT_DECIMAL) {
+                if(unsignedMark) {
+                    if(longlong) {
+                        len = sprintf_s(buffer, 128, "%llu", value);
+                    }
+                    else {
+                        len = sprintf_s(buffer, 128, "%u", (int)value);
+                    }
+                }
+                else {
+                    if(longlong) {
+                        len = sprintf_s(buffer, 128, "%lld", value);
+                    }
+                    else {
+                        len = sprintf_s(buffer, 128, "%d", (int)value);
+                    }
+                }
+            }
+            else if(outputFormat == OUTPUTFORMAT_HEX) {
+                len = printHexToBuffer(buffer, value, false);
+            }
+            else if(outputFormat == OUTPUTFORMAT_UPPERHEX) {
+                len = printHexToBuffer(buffer, value, true);
+            }
+            else if(outputFormat == OUTPUTFORMAT_BIN) {
+                len = printBinToBuffer(buffer, value);
+            }
+
+            if(right) {
+                for(int i = 0; i < space - len; ++i) {
+                    if(fillZero) {
+                        printf("0");
+                    }
+                    else {
+                        printf(" ");
+                    }
+                }
+
+                printf("%s", buffer);
+            }
+            else {
+                printf("%s", buffer);
+            }
+        }
+
+        void printFormattedChar(char value, int cap, bool right, int space) {
+            if(cap == 1) {
                 value = std::toupper(value);
+            }
+            else if(cap == 2) {
+                value = std::tolower(value);
             }
 
             if(right) {
@@ -453,7 +678,7 @@ class DebugLogger {
                         break;
                     case '{':
                         printArgument(format, index, args);
-                        break;
+                        return format[index];
                     case '\\':
                         index++;
                     default:
@@ -526,7 +751,7 @@ class DebugLogger {
                 }
 
                 const char* getString() {
-                    return (char*)value;
+                    return &(*(std::string*)value)[0];
                 }
 
                 DebugVarType getType() const {
