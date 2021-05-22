@@ -69,30 +69,65 @@ class DebugLogger {
                 messageCount[i] = 0;
             }
 
+            levelNames[(int)Level::TRACE] = "TCE";
+            levelNames[(int)Level::WARNING] = "WNG";
+            levelNames[(int)Level::ERROR] = "ERR";
+            levelNames[(int)Level::CRITICAL_ERROR] = "CRT";
+            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::TRACE];
+
             //add default variables
+            //th = time hours
+            //tm = time minutes
+            //ts = time seconds
+            //tl = time milliseconds
+            //ti = time microseconds
             addInternalVariable("th", timeVars + 0, DebugVarType::FLOAT64);
             addInternalVariable("tm", timeVars + 1, DebugVarType::FLOAT64);
             addInternalVariable("ts", timeVars + 2, DebugVarType::FLOAT64);
-            addInternalVariable("tl", timeVars + 3, DebugVarType::FLOAT64);
+            addInternalVariable("ti", timeVars + 3, DebugVarType::FLOAT64);
+            addInternalVariable("ti", timeVars + 4, DebugVarType::FLOAT64);
 
+            //eth = elapsed time hours
+            //etm = elapsed time minutes
+            //ets = elapsed time seconds
+            //etl = elapsed time milliseconds
+            //eti = elapsed time microseconds
             addInternalVariable("eth", elapsedTimeVars + 0, DebugVarType::FLOAT64);
             addInternalVariable("etm", elapsedTimeVars + 1, DebugVarType::FLOAT64);
             addInternalVariable("ets", elapsedTimeVars + 2, DebugVarType::FLOAT64);
             addInternalVariable("etl", elapsedTimeVars + 3, DebugVarType::FLOAT64);
             addInternalVariable("eti", elapsedTimeVars + 4, DebugVarType::FLOAT64);
-            addInternalVariable("etn", elapsedTimeVars + 5, DebugVarType::FLOAT64);
 
-            addInternalVariable("name", &this->loggerName, DebugVarType::STRING);
+            //the name of the logger program
+            addInternalVariable("pn", &this->loggerName, DebugVarType::STRING);
+
+            //the name of the levels
+            //tn = trace name
+            //wn = warning name
+            //en = error name
+            //cn = critical name
+            //ln = current level name
+            addInternalVariable("tn", &this->levelNames[(int)Level::TRACE], DebugVarType::STRING);
+            addInternalVariable("wn", &this->levelNames[(int)Level::WARNING], DebugVarType::STRING);
+            addInternalVariable("en", &this->levelNames[(int)Level::ERROR], DebugVarType::STRING);
+            addInternalVariable("cn", &this->levelNames[(int)Level::CRITICAL_ERROR], DebugVarType::STRING);
+            addInternalVariable("ln", &this->levelNames[(int)Level::LEVEL_COUNT], DebugVarType::STRING);
 
             //variables for message count
             //dmc stands for debug message count
             addInternalVariable("dmc", &messageCount[(int)Level::LEVEL_COUNT], DebugVarType::INTEGER64);
 
             //tmc stands for trace message count
+            //wmc warning message count
+            //emc error message count
+            //cmc critical messageCount
             addInternalVariable("tmc", &messageCount[(int)Level::TRACE], DebugVarType::INTEGER64);
             addInternalVariable("wmc", &messageCount[(int)Level::WARNING], DebugVarType::INTEGER64);
             addInternalVariable("emc", &messageCount[(int)Level::ERROR], DebugVarType::INTEGER64);
             addInternalVariable("cmc", &messageCount[(int)Level::CRITICAL_ERROR], DebugVarType::INTEGER64);
+
+            //level message count
+            addInternalVariable("lmc", &currentMessageCount, DebugVarType::INTEGER64);
 
             //char pnemonics
             reserves["char"] = Token::TokenType::SIGNED_CHAR;
@@ -108,7 +143,7 @@ class DebugLogger {
 
             //long pneumonics
             reserves["long"] = Token::TokenType::SIGNED_LONG;
-            reserves["l"] = Token::TokenType::SIGNED_LONG;
+            reserves["llu"] = Token::TokenType::SIGNED_LONG;
             reserves["ulong"] = Token::TokenType::SIGNED_LONG;
             reserves["ul"] = Token::TokenType::SIGNED_LONG;
 
@@ -122,7 +157,7 @@ class DebugLogger {
             reserves["str"] = Token::TokenType::STRING;
             reserves["s"] = Token::TokenType::STRING;
 
-            setPrefix("[>04dmc]: ");
+            setPrefix("[3ln]~[.2etl] \\[[>05dmc]\\]: ");
         }
 
         ~DebugLogger() {
@@ -148,22 +183,6 @@ class DebugLogger {
          * To use a variable, use two braces and write the name of the variable inside; constrast from the {} used for printing parameters passed into the function
          * [ var_name ] -> with or without the spaces, it doesn't matter
          * Basic formatting options within the braces apply
-         * Variables:
-         * th, tm, ts, tl, ti, tn -> the time suffixes (also their own variables)
-         * th -> time hours
-         * tm -> time minutes
-         * ts -> time seconds
-         * tl -> time milliseconds
-         * ti -> time microseconds
-         * tn -> time nanoseconds
-         * These time suffixees can be used after any time variable
-         * no prefix means use the raw values for the time, so (th) will give the time in hours including the decimal
-         * eth, etm, ets, .. -> elapsed time since last message (doesnt care about the debug level)
-         * 
-         * other variables
-         * dl -> debug level
-         * name -> the name of the logger
-         * whatever custom variables you add
          * Applies the prefix to all levels if @param targetLevel is omitted
          * */
         void setPrefix(const std::string& prefix, Level targetLevel = Level::LEVEL_COUNT) {
@@ -257,6 +276,7 @@ class DebugLogger {
          * Internal trace handler
          * */
         void traceInternal(std::ostream& output, const char* format, va_list& args) {
+            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::TRACE];
             messageCount[(int)Level::TRACE]++;
             messageCount[(int)Level::LEVEL_COUNT]++;
 
@@ -277,9 +297,6 @@ class DebugLogger {
         }
 
         void warningInternal(std::ostream& output, const char* format, ...) {
-            messageCount[(int)Level::WARNING]++;
-            messageCount[(int)Level::LEVEL_COUNT]++;
-            //set color (warning color)
         }
 
         void errorInternal(std::ostream& output, const char* format, ...) {
@@ -520,7 +537,7 @@ class DebugLogger {
         /**
          * Prints the variable
          * */
-        void printVariable(std::ostream& output, const char* format, int& index, va_list& args) {
+        void printVariable(std::ostream& output, const char* format, int& index) {
             //0 for no change, 1 for upper, 2 for lower
             int capitalized = CAPITALIZEDFORMAT_NONE;
             bool rightAligned = false;
@@ -797,6 +814,10 @@ class DebugLogger {
             }
             else {
                 output << buffer;
+
+                for(int i = 0; i < space - len; ++i) {
+                    output << " ";
+                }
             }
         }
 
@@ -885,7 +906,7 @@ class DebugLogger {
         bool printNext(std::ostream& outputStream, const char* format, int& index, va_list& args) {
             switch(format[index]) {
                 case '[':
-                    printVariable(outputStream, format, index, args);
+                    printVariable(outputStream, format, index);
                     break;
                 case '{':
                     printArgument(outputStream, format, index, args);
@@ -901,6 +922,26 @@ class DebugLogger {
 
             return format[index];
         }
+            
+        /**
+         * Prints the prefix
+         * Pretty much the same thing as printNext, but it will only accept variables
+         * */
+        bool printNextPrefix(std::ostream& output, const char* format, int& index) {
+            switch (format[index]) {
+                case '[':
+                    printVariable(output, format, index);
+                    break;
+                case '\\':
+                    index++;
+                default:
+                    output << format[index];
+                    break;
+            }
+
+            index++;
+            return format[index];
+        }
 
         //raw values for total time
         double timeVars[4] = { 0 };
@@ -913,12 +954,21 @@ class DebugLogger {
          * messageCount[LEVEL_COUNT] is the total number of messages sent to the debugger
          * */
         long long messageCount[(int)Level::LEVEL_COUNT + 1];
+        long long currentMessageCount = 0;
 
         /*
         * prints to the output stream the debug format
         */
         void printPrefix(std::ostream& output, Level level) {
-            output << prefixFormat[(int)level];
+            const char* format = prefixFormat[(int)level].c_str();
+            int len = (int)prefixFormat[(int)level].size();
+            int formatIndex = 0;
+            int previousFormatIndex = -1;
+
+            //process and print arguments
+            while(printNextPrefix(output, format, formatIndex) && formatIndex < len && formatIndex != previousFormatIndex) {
+                previousFormatIndex = formatIndex;
+            }
         }
 
         /**
@@ -1014,6 +1064,9 @@ class DebugLogger {
 
         //list of reserves
         std::map<std::string, Token::TokenType> reserves;
+
+        //an array of level names
+        std::string levelNames[(int)Level::LEVEL_COUNT];
 
         /**
          * A string representing the prefix of each debug
