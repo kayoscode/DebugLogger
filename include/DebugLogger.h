@@ -941,7 +941,12 @@ class DebugLogger {
                 output << buffer;
 
                 for(int i = 0; i < space - len; ++i) {
-                    output << " ";
+                    if(fillZero) {
+                        output << "0";
+                    }
+                    else {
+                        output << " ";
+                    }
                 }
             }
         }

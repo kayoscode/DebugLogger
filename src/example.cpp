@@ -65,8 +65,9 @@ int main() {
     //formatting options may be applied in any order as long as they don't conflict. The main one that could conflict is the fill zero formatter.
     //that one is marked with a 0, so what could happen is if you put that right after the space option, it will treat it as part of the number
     //heres how to use it properly and how to print in hex
-    logger.trace("0x{>08xint}, 0x{>8X0int}", 0xDEAD, 0xBEEF);
+    logger.trace("0x{>08xint}, 0x{X0long 16}", 0xDEAD, 0xBEEF);
     //by putting the zero specified before the space count, it treated it properly. As well as that, putting it after the x also works
+    //notice how it doesn't matter where you put the space parameter as long as it cannot be confused with the type specifier or variable name. That's why there must be a space if you put it after
     //NOTE: the capitalization doesn't work on hex numbers. You have to use lowercase x or X to change the case.
 
     //FORMATTING floats
@@ -77,7 +78,11 @@ int main() {
     logger.setPrefix("[3ln]~[.2etl] [[[>05lmc]]]: ");
     double testVar = 100.156;
     logger.addVariable("testVar", &testVar, DebugVarType::FLOAT64);
-    logger.trace("{str}: [.2testVar]", "Current testVar value");
+
+    //there is one more spacing option for floats. If you add a number after a decimal point, then it indicates the number of spaces taken by the decimals
+    //.2 would indicate 2 decimals of precision.
+    //the first number in the spacing represents the total amount of space used by the float. For example 10.2 will use 10 spaces min, but will use at most 2 decimal places of precision
+    logger.trace("{str}: ([10.2testVar])", "Current testVar value");
     testVar = -0.12338;
     logger.trace("{str}: [.4testVar], param 2 {{{>+3uint}}}, capitalized char: {^char}", "Now it's something different", 10, 'a');
 
@@ -87,6 +92,8 @@ int main() {
 
     //of course you can use the other levels such as warning, critical, and error
     //this tutorial only made use of trace
+    //this may seem harder to read than printf, but it's actually more logical, more customizable with the prefix and variables, and provides a couple more formatting options.
+    //its a learning curve in the same way as printf, but it's better in many ways except speed. It compares to cout in terms of speed.
 
     return 0;
 }
