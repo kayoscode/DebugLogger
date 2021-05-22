@@ -133,6 +133,7 @@ class DebugLogger {
 
             //char pnemonics
             reserves["char"] = Token::TokenType::SIGNED_CHAR;
+            reserves["ch"] = Token::TokenType::SIGNED_CHAR;
             reserves["c"] = Token::TokenType::SIGNED_CHAR;
 
             //int pnemonics
