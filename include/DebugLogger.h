@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <stdarg.h>
+#include "Timer.h"
 
 constexpr int OUTPUTFORMAT_DECIMAL = 0;
 constexpr int OUTPUTFORMAT_HEX = 1;
@@ -14,7 +15,6 @@ constexpr int OUTPUTFORMAT_BIN = 3;
 constexpr int CAPITALIZEDFORMAT_NONE = 0;
 constexpr int CAPITALIZEDFORMAT_CAPS = 1;
 constexpr int CAPITALIZEDFORMAT_LOWER = 2;
-
 
 /**
  * Levels for debugging
@@ -33,6 +33,15 @@ enum class Level {
     LEVEL_COUNT
 };
 
+/**
+ * all the valid types for debug variables
+ * INTEGER32: a 32 bit integer
+ * INTEGER64: a 64 bit integer
+ * FLOAT32: a 32 bit floating point value
+ * FLOAT64: a 64 bit floating point value
+ * STRING: an instance of std::string
+ * @author Bryce Young 5/19/2021
+ * */
 enum class DebugVarType {
     CHAR,
     INTEGER32,
@@ -48,28 +57,42 @@ enum class DebugVarType {
  * CFG doc:
  * 
  * Capitalize any output by prefixing with ^
+ * 
+ * @author Bryce Young 5/20/2021
  * */
 class DebugLogger {
     public:
         DebugLogger(const std::string& loggerName = "Debug:", Level level = Level::WARNING) 
             :level(level)
         {
-            //add default variables
-            addVariable("th", timeVars + 0, DebugVarType::FLOAT32);
-            addVariable("tm", timeVars + 1, DebugVarType::FLOAT32);
-            addVariable("ts", timeVars + 2, DebugVarType::FLOAT32);
-            addVariable("tl", timeVars + 3, DebugVarType::FLOAT32);
-            addVariable("ti", timeVars + 4, DebugVarType::FLOAT32);
-            addVariable("tn", timeVars + 5, DebugVarType::FLOAT32);
+            for(int i = 0; i <= (int)Level::LEVEL_COUNT; ++i) {
+                messageCount[i] = 0;
+            }
 
-            addVariable("eth", elapsedTimeVars + 0, DebugVarType::FLOAT32);
-            addVariable("etm", elapsedTimeVars + 1, DebugVarType::FLOAT32);
-            addVariable("ets", elapsedTimeVars + 2, DebugVarType::FLOAT32);
-            addVariable("etl", elapsedTimeVars + 3, DebugVarType::FLOAT32);
-            addVariable("eti", elapsedTimeVars + 4, DebugVarType::FLOAT32);
-            addVariable("etn", elapsedTimeVars + 5, DebugVarType::FLOAT32);
+            //add default variables
+            addVariable("th", timeVars + 0, DebugVarType::FLOAT64);
+            addVariable("tm", timeVars + 1, DebugVarType::FLOAT64);
+            addVariable("ts", timeVars + 2, DebugVarType::FLOAT64);
+            addVariable("tl", timeVars + 3, DebugVarType::FLOAT64);
+
+            addVariable("eth", elapsedTimeVars + 0, DebugVarType::FLOAT64);
+            addVariable("etm", elapsedTimeVars + 1, DebugVarType::FLOAT64);
+            addVariable("ets", elapsedTimeVars + 2, DebugVarType::FLOAT64);
+            addVariable("etl", elapsedTimeVars + 3, DebugVarType::FLOAT64);
+            addVariable("eti", elapsedTimeVars + 4, DebugVarType::FLOAT64);
+            addVariable("etn", elapsedTimeVars + 5, DebugVarType::FLOAT64);
 
             addVariable("name", &this->loggerName, DebugVarType::STRING);
+
+            //variables for message count
+            //dmc stands for debug message count
+            addVariable("dmc", &messageCount[(int)Level::LEVEL_COUNT], DebugVarType::INTEGER64);
+
+            //tmc stands for trace message count
+            addVariable("tmc", &messageCount[(int)Level::TRACE], DebugVarType::INTEGER64);
+            addVariable("wmc", &messageCount[(int)Level::WARNING], DebugVarType::INTEGER64);
+            addVariable("emc", &messageCount[(int)Level::ERROR], DebugVarType::INTEGER64);
+            addVariable("cmc", &messageCount[(int)Level::CRITICAL_ERROR], DebugVarType::INTEGER64);
 
             //char pnemonics
             reserves["char"] = Token::TokenType::SIGNED_CHAR;
@@ -130,37 +153,57 @@ class DebugLogger {
          * dl -> debug level
          * name -> the name of the logger
          * whatever custom variables you add
+         * Applies the prefix to all levels if @param targetLevel is omitted
          * */
-        void setPrefix(const std::string& prefix) {
-            this->prefixFormat = prefix;
-        }
-
-        std::string getPrefix() const {
-            return this->prefixFormat;
+        void setPrefix(const std::string& prefix, Level targetLevel = Level::LEVEL_COUNT) {
+            if(targetLevel == Level::LEVEL_COUNT) {
+                this->prefixFormat[(int)Level::TRACE] = prefix;
+                this->prefixFormat[(int)Level::WARNING] = prefix;
+                this->prefixFormat[(int)Level::ERROR] = prefix;
+                this->prefixFormat[(int)Level::CRITICAL_ERROR] = prefix;
+            }
+            else if(targetLevel < Level::LEVEL_COUNT && targetLevel >= Level::TRACE){
+                this->prefixFormat[(int)targetLevel] = prefix;
+            }
         }
 
         void trace(std::ostream& output, const char* format, ...) {
+            messageCount[(int)Level::TRACE]++;
+            messageCount[(int)Level::LEVEL_COUNT]++;
+
             //set color (trace color)
             va_list args;
             va_start(args, format);
 
+            int len = (int)strlen(format);
             int formatIndex = 0;
+            int previousFormatIndex = -1;
 
             //process and print arguments
-            while(printNextArgument(format, formatIndex, args));
+            while(printNextArgument(format, formatIndex, args) && formatIndex < len && formatIndex != previousFormatIndex) {
+                previousFormatIndex = formatIndex;
+            }
+
+            output << "\n";
 
             va_end(args);
         }
 
         void warning(std::ostream& output, const char* format, ...) {
+            messageCount[(int)Level::WARNING]++;
+            messageCount[(int)Level::LEVEL_COUNT]++;
             //set color (warning color)
         }
 
         void error(std::ostream& output, const char* format, ...) {
+            messageCount[(int)Level::ERROR]++;
+            messageCount[(int)Level::LEVEL_COUNT]++;
             //set color (error color)
         }
 
         void critical(std::ostream& output, const char* format, ...) {
+            messageCount[(int)Level::CRITICAL_ERROR]++;
+            messageCount[(int)Level::LEVEL_COUNT]++;
             //set color (critical color)
         }
 
@@ -206,6 +249,7 @@ class DebugLogger {
                 LOWER,
                 RIGHT,
                 FILL_ZERO,
+                ZERO_DECIMALS,
                 VARIABLE_NAME,
                 FLOAT,
                 UNSIGNED_MARK,
@@ -276,7 +320,7 @@ class DebugLogger {
                 index++;
                 return true;
             }
-            else if(format[index] == 'u') {
+            else if(format[index] == '+') {
                 currentToken.type = Token::TokenType::UNSIGNED_MARK;
                 currentToken.lexemeStart = format + index;
                 currentToken.lexemeEnd = format + index + 1;
@@ -288,6 +332,14 @@ class DebugLogger {
                 currentToken.lexemeStart = format + index;
                 currentToken.lexemeEnd = format + index + 1;
                 index++;
+
+                //if its .0, then it counts as a single token
+                if(format[index] == '0') {
+                    currentToken.type = Token::TokenType::ZERO_DECIMALS;
+                    currentToken.lexemeEnd++;
+                    index++;
+                }
+
                 return true;
             }
             else if(format[index] == 'x') {
@@ -345,19 +397,7 @@ class DebugLogger {
             currentToken.lexemeEnd = format + index;
         }
 
-        void printVariable(const char* format, int& index, va_list args) {
-            //0 for no change, 1 for upper, 2 for lower
-            int capitalized = CAPITALIZEDFORMAT_NONE;
-            bool rightAligned = false;
-            bool unsignedValue = false;
-            std::string variableName;
-            int setSpaceCount = -1;
-            int setSpaceCount_dec = -1;
-            bool fillZero = false;
-
-            //0 = decimal, 1 = hex, 2 = upper hex, 3 = binary
-            int outputFormat = OUTPUTFORMAT_DECIMAL;
-
+        void collectFormattingOptions(const char* format, int& index, int& capitalized, bool& rightAligned, bool& unsignedValue, std::string& v, int& spaceCount, int& spaceCount_dec, bool& fillZero, int& outputFormat) { 
             bool foundDecimal = false;
 
             //implement variable grammar here
@@ -386,11 +426,14 @@ class DebugLogger {
 
                     if(foundDecimal) {
                         foundDecimal = false;
-                        setSpaceCount_dec = value;
+                        spaceCount_dec = value;
                     }
                     else {
-                        setSpaceCount = value;
+                        spaceCount = value;
                     }
+                }
+                else if(currentToken.type == Token::TokenType::ZERO_DECIMALS) {
+                    spaceCount_dec = 0;
                 }
                 else if(currentToken.type == Token::TokenType::DECIMAL) {
                     foundDecimal = true;
@@ -408,11 +451,25 @@ class DebugLogger {
                     outputFormat = OUTPUTFORMAT_BIN;
                 }
                 else {
-                    variableName = std::string(currentToken.lexemeStart, currentToken.lexemeEnd);
+                    v = std::string(currentToken.lexemeStart, currentToken.lexemeEnd);
                 }
 
                 skipWhitespace(format, index);
             }
+        }
+
+        void printVariable(const char* format, int& index, va_list args) {
+            //0 for no change, 1 for upper, 2 for lower
+            int capitalized = CAPITALIZEDFORMAT_NONE;
+            bool rightAligned = false;
+            bool unsignedValue = false;
+            std::string variableName;
+            int setSpaceCount = -1;
+            int setSpaceCount_dec = -1;
+            bool fillZero = false;
+            int outputFormat = OUTPUTFORMAT_DECIMAL;
+
+            collectFormattingOptions(format, index, capitalized, rightAligned, unsignedValue, variableName, setSpaceCount, setSpaceCount_dec, fillZero, outputFormat);
 
             //now that we have reached the end, we can go ahead and print the variable
             //lets check if it exists first
@@ -517,26 +574,85 @@ class DebugLogger {
             return index;
         }
 
-        void printFormattedFloat(double value, bool right, int spaces, int decSpaces, bool fillZero) {
-            std::string format = "%";
-            if(fillZero) {
-                format += '0';
-            }
+        double powers10[6] = { 10, 100, 1000, 10000, 100000, 1000000 };
 
-            format += std::to_string(spaces);
+        void printFormattedFloat(double value, bool right, int spaces, int decSpaces, bool fillZero) {
+            decSpaces = (decSpaces == -1)? 6 : decSpaces;
+            int tmpDecSpaces = decSpaces;
+            decSpaces = std::max(0, decSpaces);
+            decSpaces = std::min(5, decSpaces);
 
             if(decSpaces > 0) {
-                format += ".";
-                format += std::to_string(decSpaces);
+                double power = powers10[decSpaces - 1];
+
+                //truncate the multiplication by the power
+                value = (value * power);
+                value = std::trunc((value + .5));
+                value /= power;
+            }
+            else if(decSpaces == 0) {
+                value = std::trunc((value + .5));
             }
 
-            format += "f";
+            decSpaces = tmpDecSpaces;
 
-            char buffer[129];
-            buffer[128] = 0;
-            int len = sprintf_s(buffer, 128, format.c_str(), value);
+            std::string toPrint(std::to_string(value));
+            int decLoc = (int)toPrint.find(".");
+            int len = 0;
 
-            printf("%s", buffer);
+            if(decLoc != -1) {
+                len = decLoc + decSpaces + (decSpaces != 0);
+            }
+            else {
+                //if the decimal point doesn't exist in the string, there are no decimal places (not relying on std::to_string to add trailing decimals)
+                len = (int)toPrint.size();
+
+                if(decSpaces != 0) {
+                    len += decSpaces + 1;
+                    toPrint += '.';
+                    std::cout << toPrint << "\n";
+                }
+            }
+
+            //format it right if necessary
+            if(right) {
+                for(int i = 0; i < spaces - len; ++i) {
+                    if(fillZero) {
+                        printf("0");
+                    }
+                    else {
+                        printf(" ");
+                    }
+                }
+
+                for(int i = 0; i < len; ++i) {
+                    if(i < toPrint.size()) {
+                        printf("%c", toPrint[i]);
+                    }
+                    else {
+                        printf("0");
+                    }
+                }
+            }
+            else {
+                for(int i = 0; i < len; ++i) {
+                    if(i < toPrint.size()) {
+                        printf("%c", toPrint[i]);
+                    }
+                    else {
+                        printf("0");
+                    }
+                }
+
+                for(int i = 0; i < spaces - len; ++i) {
+                    if(fillZero) {
+                        printf("0");
+                    }
+                    else {
+                        printf(" ");
+                    }
+                }
+            }
         }
 
         void printFormattedStringRaw(const char* toPrint, int cap, int len) {
@@ -671,32 +787,36 @@ class DebugLogger {
          * @return true if there is more to the string
          * */
         bool printNextArgument(const char* format, int& index, va_list args) {
-            while(format[index]) {
-                switch(format[index]) {
-                    case '[':
-                        printVariable(format, index, args);
-                        break;
-                    case '{':
-                        printArgument(format, index, args);
-                        return format[index];
-                    case '\\':
-                        index++;
-                    default:
-                        std::cout << format[index];
-                        break;
-                }
-
-                index++;
+            switch(format[index]) {
+                case '[':
+                    printVariable(format, index, args);
+                    break;
+                case '{':
+                    printArgument(format, index, args);
+                    break;
+                case '\\':
+                    index++;
+                default:
+                    printf("%c", format[index]);
+                    break;
             }
+
+            index++;
 
             return format[index];
         }
 
         //raw values for total time
-        float timeVars[6] = { 0 };
+        double timeVars[4] = { 0 };
 
         //raw values for total time
-        float elapsedTimeVars[6] = { 0 };
+        double elapsedTimeVars[4] = { 0 };
+
+        /**
+         * Stores the number of messages at each level
+         * messageCount[LEVEL_COUNT] is the total number of messages sent to the debugger
+         * */
+        long long messageCount[(int)Level::LEVEL_COUNT + 1];
 
         /*
         * prints to the output stream the debug format
@@ -796,8 +916,10 @@ class DebugLogger {
         /**
          * A string representing the prefix of each debug
          * Can access internal variables and is updated on each print
+         * You can use a different format for each debug level if you want, but you have to specify it with specific function calls
+         * Calling the funciton to set the prefix format globally will overwrite it for all level counts!
          * */
-        std::string prefixFormat;
+        std::string prefixFormat[(int)Level::LEVEL_COUNT];
 
 };
 

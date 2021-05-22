@@ -3,14 +3,10 @@
 
 int main() {
     DebugLogger logger;
-    int v = 0x1A;
-    float vflt = 1012.123f;
-    char test = 'c';
-    std::string string = "testString :D!";
-    logger.addVariable("int", &v, DebugVarType::INTEGER32);
-    logger.addVariable("float", &vflt, DebugVarType::FLOAT32);
-    logger.addVariable("test", &test, DebugVarType::CHAR);
-    logger.addVariable("string", &string, DebugVarType::STRING);
-    logger.trace(std::cout, "test: [20>string]");
+    float variable = 10.12f;
+    int variable2 = 10;
+    logger.addVariable("var", &variable, DebugVarType::FLOAT32);
+    logger.addVariable("var2", &variable2, DebugVarType::INTEGER32);
+    logger.trace(std::cout, "[.100var] this sux");
     return 0;
 }
