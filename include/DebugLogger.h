@@ -316,18 +316,6 @@ class DebugLogger {
             timer.reset();
         }
 
-        void warning() {
-
-        }
-
-        void error() {
-
-        }
-
-        void critical() {
-
-        }
-
         inline void setTrace() {
             //set trace vars
             levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::TRACE];
