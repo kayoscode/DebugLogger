@@ -157,7 +157,7 @@ class DebugLogger {
             reserves["str"] = Token::TokenType::STRING;
             reserves["s"] = Token::TokenType::STRING;
 
-            setPrefix("[3ln]~[.2etl] \\[[>05dmc]\\]: ");
+            setPrefix("[3ln]~[.2etl] \\[[>05lmc]\\]: ");
         }
 
         ~DebugLogger() {
@@ -201,7 +201,10 @@ class DebugLogger {
             va_list args;
             va_start(args, format);
 
-            traceInternal(std::cout, format, args);
+            //set trace vars
+            updateLogger(Level::TRACE);
+            setTrace();
+            logInternal(std::cout, format, args);
 
             va_end(args);
         }
@@ -210,9 +213,86 @@ class DebugLogger {
             va_list args;
             va_start(args, format);
 
-            traceInternal(output, format, args);
+            //set trace vars
+            updateLogger(Level::TRACE);
+            setTrace();
+            logInternal(output, format, args);
 
             va_end(args);
+        }
+
+        void warning(const char* format, ...) {
+            va_list args;
+            va_start(args, format);
+
+            updateLogger(Level::WARNING);
+            setWarning();
+            logInternal(std::cout , format, args);
+
+            va_end(args);
+        }
+
+        void warningToStream(std::ostream& output, const char* format, ...) {
+            va_list args;
+            va_start(args, format);
+
+            updateLogger(Level::WARNING);
+            setWarning();
+            logInternal(output, format, args);
+
+            va_end(args);
+        }
+
+        void error(const char* format, ...) {
+            va_list args;
+            va_start(args, format);
+
+            updateLogger(Level::ERROR);
+            setError();
+            logInternal(std::cout, format, args);
+
+            va_end(args);
+        }
+
+        void errorToStream(std::ostream& output, const char* format, ...) {
+            va_list args;
+            va_start(args, format);
+
+            updateLogger(Level::ERROR);
+            setError();
+            logInternal(output, format, args);
+
+            va_end(args);
+        }
+
+        void critical(const char* format, ...) {
+            va_list(args);
+            va_start(args, format);
+
+            updateLogger(Level::CRITICAL_ERROR);
+            setCritical();
+            logInternal(std::cout, format, args);
+
+            va_end(args);
+        }
+
+        void criticalToStream(std::ostream& output, const char* format, ...) {
+            va_list(args);
+            va_start(args, format);
+
+            updateLogger(Level::CRITICAL_ERROR);
+            setCritical();
+            logInternal(output, format, args);
+
+            va_end(args);
+        }
+
+        /**
+         * Updates times and message counts
+         * */
+        void updateLogger(Level level) {
+            messageCount[(int)level]++;
+            messageCount[(int)Level::LEVEL_COUNT]++;
         }
 
         void warning() {
@@ -225,6 +305,27 @@ class DebugLogger {
 
         void critical() {
 
+        }
+
+        void setTrace() {
+            //set trace vars
+            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::TRACE];
+            currentMessageCount = messageCount[(int)Level::TRACE];
+        }
+
+        void setWarning() {
+            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::WARNING];
+            currentMessageCount = messageCount[(int)Level::WARNING];
+        }
+
+        void setError() {
+            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::ERROR];
+            currentMessageCount = messageCount[(int)Level::ERROR];
+        }
+
+        void setCritical() {
+            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::CRITICAL_ERROR];
+            currentMessageCount = messageCount[(int)Level::CRITICAL_ERROR];
         }
 
         /**
@@ -273,15 +374,15 @@ class DebugLogger {
         }
 
         /**
-         * Internal trace handler
+         * Internal method to handle logging
+         * @param output the output stream to write to
+         * @param format the print format
+         * @param args the va arguments as a reference
+         * @param level the current log level
          * */
-        void traceInternal(std::ostream& output, const char* format, va_list& args) {
-            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::TRACE];
-            messageCount[(int)Level::TRACE]++;
-            messageCount[(int)Level::LEVEL_COUNT]++;
-
+        void logInternal(std::ostream& output, const char* format, va_list& args) {
             //print prefix to message using only internal variables
-            printPrefix(output, Level::TRACE);
+            printPrefix(output, level);
 
             //set color (trace color)
             int len = (int)strlen(format);
@@ -294,21 +395,6 @@ class DebugLogger {
             }
 
             output << "\n";
-        }
-
-        void warningInternal(std::ostream& output, const char* format, ...) {
-        }
-
-        void errorInternal(std::ostream& output, const char* format, ...) {
-            messageCount[(int)Level::ERROR]++;
-            messageCount[(int)Level::LEVEL_COUNT]++;
-            //set color (error color)
-        }
-
-        void criticalInternal(std::ostream& output, const char* format, ...) {
-            messageCount[(int)Level::CRITICAL_ERROR]++;
-            messageCount[(int)Level::LEVEL_COUNT]++;
-            //set color (critical color)
         }
 
         /**

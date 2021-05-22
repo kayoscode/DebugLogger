@@ -3,6 +3,6 @@
 
 int main() {
     DebugLogger logger;
-    logger.trace("This is a test: {^c}", 'a');
+    logger.trace("Quick message: [ln]");
     return 0;
 }
