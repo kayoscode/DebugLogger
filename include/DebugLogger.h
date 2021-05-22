@@ -65,6 +65,8 @@ class DebugLogger {
         DebugLogger(const std::string& loggerName = "Debug:", Level level = Level::WARNING) 
             :level(level)
         {
+            totalNanoseconds = 0;
+
             for(int i = 0; i <= (int)Level::LEVEL_COUNT; ++i) {
                 messageCount[i] = 0;
             }
@@ -84,7 +86,7 @@ class DebugLogger {
             addInternalVariable("th", timeVars + 0, DebugVarType::FLOAT64);
             addInternalVariable("tm", timeVars + 1, DebugVarType::FLOAT64);
             addInternalVariable("ts", timeVars + 2, DebugVarType::FLOAT64);
-            addInternalVariable("ti", timeVars + 3, DebugVarType::FLOAT64);
+            addInternalVariable("tl", timeVars + 3, DebugVarType::FLOAT64);
             addInternalVariable("ti", timeVars + 4, DebugVarType::FLOAT64);
 
             //eth = elapsed time hours
@@ -158,6 +160,7 @@ class DebugLogger {
             reserves["s"] = Token::TokenType::STRING;
 
             setPrefix("[3ln]~[.2etl] [[[>05lmc]]]: ");
+            timer.reset();
         }
 
         ~DebugLogger() {
@@ -290,9 +293,27 @@ class DebugLogger {
         /**
          * Updates times and message counts
          * */
-        void updateLogger(Level level) {
+        inline void updateLogger(Level level) {
             messageCount[(int)level]++;
             messageCount[(int)Level::LEVEL_COUNT]++;
+
+            //update timers (hrs, mins, seconds, millis, microseconds)
+            long long elapsedNanos = timer.nanoseconds();
+            totalNanoseconds += elapsedNanos;
+
+            timeVars[0] = (double)totalNanoseconds / 3.6e12;
+            timeVars[1] = (double)totalNanoseconds / 6e10;
+            timeVars[2] = (double)totalNanoseconds / 1e9;
+            timeVars[3] = (double)totalNanoseconds / 1e6;
+            timeVars[4] = (double)totalNanoseconds / 1000;
+
+            elapsedTimeVars[0] = (double)elapsedNanos / 3.6e12;
+            elapsedTimeVars[1] = (double)elapsedNanos / 6e10;
+            elapsedTimeVars[2] = (double)elapsedNanos / 1e9;
+            elapsedTimeVars[3] = (double)elapsedNanos / 1e6;
+            elapsedTimeVars[4] = (double)elapsedNanos / 1000;
+
+            timer.reset();
         }
 
         void warning() {
@@ -307,23 +328,23 @@ class DebugLogger {
 
         }
 
-        void setTrace() {
+        inline void setTrace() {
             //set trace vars
             levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::TRACE];
             currentMessageCount = messageCount[(int)Level::TRACE];
         }
 
-        void setWarning() {
+        inline void setWarning() {
             levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::WARNING];
             currentMessageCount = messageCount[(int)Level::WARNING];
         }
 
-        void setError() {
+        inline void setError() {
             levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::ERROR];
             currentMessageCount = messageCount[(int)Level::ERROR];
         }
 
-        void setCritical() {
+        inline void setCritical() {
             levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::CRITICAL_ERROR];
             currentMessageCount = messageCount[(int)Level::CRITICAL_ERROR];
         }
@@ -380,7 +401,7 @@ class DebugLogger {
          * @param args the va arguments as a reference
          * @param level the current log level
          * */
-        void logInternal(std::ostream& output, const char* format, va_list& args) {
+        inline void logInternal(std::ostream& output, const char* format, va_list& args) {
             //print prefix to message using only internal variables
             printPrefix(output, level);
 
@@ -990,6 +1011,8 @@ class DebugLogger {
          * @return true if there is more to the string
          * */
         bool printNext(std::ostream& outputStream, const char* format, int& index, va_list& args) {
+            int startIndex = index;
+
             switch(format[index]) {
                 case '[':
                     //[ escapes itself. If there are two in a row, it means to put [ as a raw character
@@ -1024,7 +1047,11 @@ class DebugLogger {
                     }
                     break;
                 default:
-                    outputStream << format[index];
+                    while(format[index] != ']' && format[index] != '[' && format[index] != '{' && format[index] != '}' && format[index]) {
+                        index++;
+                    }
+                    outputStream << std::string(format + startIndex, format + index);
+                    index--;
                     break;
             }
 
@@ -1037,26 +1064,33 @@ class DebugLogger {
          * Prints the prefix
          * Pretty much the same thing as printNext, but it will only accept variables
          * */
-        bool printNextPrefix(std::ostream& output, const char* format, int& index) {
+        bool printNextPrefix(std::ostream& outputStream, const char* format, int& index) {
+            int startIndex = index;
+
             switch (format[index]) {
                 case '[':
                     //escapes itself
                     if(format[index + 1] == '[') {
                         index++;
-                        output << format[index];
+                        outputStream << format[index];
                     }
                     else {
-                        printVariable(output, format, index);
+                        printVariable(outputStream, format, index);
                     }
                     break;
                 case ']':
                     if(format[index + 1] == ']') {
                         index++;
-                        output << format[index];
+                        outputStream << format[index];
                     }
                     break;
                 default:
-                    output << format[index];
+                    while(format[index] != ']' && format[index] != '[' && format[index] != '{' && format[index] != '}' && format[index]) {
+                        index++;
+                    }
+
+                    outputStream << std::string(format + startIndex, format + index);
+                    index--;
                     break;
             }
 
@@ -1065,10 +1099,11 @@ class DebugLogger {
         }
 
         //raw values for total time
-        double timeVars[4] = { 0 };
+        double timeVars[5] = { 0 };
+        long long totalNanoseconds = 0;
 
         //raw values for total time
-        double elapsedTimeVars[4] = { 0 };
+        double elapsedTimeVars[5] = { 0 };
 
         /**
          * Stores the number of messages at each level
@@ -1197,6 +1232,10 @@ class DebugLogger {
          * */
         std::string prefixFormat[(int)Level::LEVEL_COUNT];
 
+        /**
+         * Timer to keep track of time and changes in it
+         * */
+        Timer timer;
 };
 
 #endif
