@@ -157,7 +157,7 @@ class DebugLogger {
             reserves["str"] = Token::TokenType::STRING;
             reserves["s"] = Token::TokenType::STRING;
 
-            setPrefix("[3ln]~[.2etl] \\[[>05lmc]\\]: ");
+            setPrefix("[3ln]~[.2etl] [[[>05lmc]]]: ");
         }
 
         ~DebugLogger() {
@@ -992,13 +992,37 @@ class DebugLogger {
         bool printNext(std::ostream& outputStream, const char* format, int& index, va_list& args) {
             switch(format[index]) {
                 case '[':
-                    printVariable(outputStream, format, index);
+                    //[ escapes itself. If there are two in a row, it means to put [ as a raw character
+                    if(format[index + 1] == '[') {
+                        index++;
+                        outputStream << format[index];
+                    }
+                    else {
+                        printVariable(outputStream, format, index);
+                    }
                     break;
                 case '{':
-                    printArgument(outputStream, format, index, args);
+                    //this also escapes itself in the exact same way as the other one
+                    if(format[index + 1] == '}') {
+                        index++;
+                        outputStream << format[index];
+                    }
+                    else {
+                        printArgument(outputStream, format, index, args);
+                    }
                     break;
-                case '\\':
-                    index++;
+                case ']':
+                    if(format[index + 1] == ']') {
+                        index++;
+                        outputStream << format[index];
+                    }
+                    break;
+                case '}':
+                    if(format[index + 1] == '}') {
+                        index++;
+                        outputStream << format[index];
+                    }
+                    break;
                 default:
                     outputStream << format[index];
                     break;
@@ -1016,10 +1040,21 @@ class DebugLogger {
         bool printNextPrefix(std::ostream& output, const char* format, int& index) {
             switch (format[index]) {
                 case '[':
-                    printVariable(output, format, index);
+                    //escapes itself
+                    if(format[index + 1] == '[') {
+                        index++;
+                        output << format[index];
+                    }
+                    else {
+                        printVariable(output, format, index);
+                    }
                     break;
-                case '\\':
-                    index++;
+                case ']':
+                    if(format[index + 1] == ']') {
+                        index++;
+                        output << format[index];
+                    }
+                    break;
                 default:
                     output << format[index];
                     break;
