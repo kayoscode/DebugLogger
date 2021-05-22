@@ -70,29 +70,29 @@ class DebugLogger {
             }
 
             //add default variables
-            addVariable("th", timeVars + 0, DebugVarType::FLOAT64);
-            addVariable("tm", timeVars + 1, DebugVarType::FLOAT64);
-            addVariable("ts", timeVars + 2, DebugVarType::FLOAT64);
-            addVariable("tl", timeVars + 3, DebugVarType::FLOAT64);
+            addInternalVariable("th", timeVars + 0, DebugVarType::FLOAT64);
+            addInternalVariable("tm", timeVars + 1, DebugVarType::FLOAT64);
+            addInternalVariable("ts", timeVars + 2, DebugVarType::FLOAT64);
+            addInternalVariable("tl", timeVars + 3, DebugVarType::FLOAT64);
 
-            addVariable("eth", elapsedTimeVars + 0, DebugVarType::FLOAT64);
-            addVariable("etm", elapsedTimeVars + 1, DebugVarType::FLOAT64);
-            addVariable("ets", elapsedTimeVars + 2, DebugVarType::FLOAT64);
-            addVariable("etl", elapsedTimeVars + 3, DebugVarType::FLOAT64);
-            addVariable("eti", elapsedTimeVars + 4, DebugVarType::FLOAT64);
-            addVariable("etn", elapsedTimeVars + 5, DebugVarType::FLOAT64);
+            addInternalVariable("eth", elapsedTimeVars + 0, DebugVarType::FLOAT64);
+            addInternalVariable("etm", elapsedTimeVars + 1, DebugVarType::FLOAT64);
+            addInternalVariable("ets", elapsedTimeVars + 2, DebugVarType::FLOAT64);
+            addInternalVariable("etl", elapsedTimeVars + 3, DebugVarType::FLOAT64);
+            addInternalVariable("eti", elapsedTimeVars + 4, DebugVarType::FLOAT64);
+            addInternalVariable("etn", elapsedTimeVars + 5, DebugVarType::FLOAT64);
 
-            addVariable("name", &this->loggerName, DebugVarType::STRING);
+            addInternalVariable("name", &this->loggerName, DebugVarType::STRING);
 
             //variables for message count
             //dmc stands for debug message count
-            addVariable("dmc", &messageCount[(int)Level::LEVEL_COUNT], DebugVarType::INTEGER64);
+            addInternalVariable("dmc", &messageCount[(int)Level::LEVEL_COUNT], DebugVarType::INTEGER64);
 
             //tmc stands for trace message count
-            addVariable("tmc", &messageCount[(int)Level::TRACE], DebugVarType::INTEGER64);
-            addVariable("wmc", &messageCount[(int)Level::WARNING], DebugVarType::INTEGER64);
-            addVariable("emc", &messageCount[(int)Level::ERROR], DebugVarType::INTEGER64);
-            addVariable("cmc", &messageCount[(int)Level::CRITICAL_ERROR], DebugVarType::INTEGER64);
+            addInternalVariable("tmc", &messageCount[(int)Level::TRACE], DebugVarType::INTEGER64);
+            addInternalVariable("wmc", &messageCount[(int)Level::WARNING], DebugVarType::INTEGER64);
+            addInternalVariable("emc", &messageCount[(int)Level::ERROR], DebugVarType::INTEGER64);
+            addInternalVariable("cmc", &messageCount[(int)Level::CRITICAL_ERROR], DebugVarType::INTEGER64);
 
             //char pnemonics
             reserves["char"] = Token::TokenType::SIGNED_CHAR;
@@ -167,44 +167,34 @@ class DebugLogger {
             }
         }
 
-        void trace(std::ostream& output, const char* format, ...) {
-            messageCount[(int)Level::TRACE]++;
-            messageCount[(int)Level::LEVEL_COUNT]++;
-
-            //set color (trace color)
+        void trace(const char* format, ...) {
             va_list args;
             va_start(args, format);
 
-            int len = (int)strlen(format);
-            int formatIndex = 0;
-            int previousFormatIndex = -1;
-
-            //process and print arguments
-            while(printNextArgument(format, formatIndex, args) && formatIndex < len && formatIndex != previousFormatIndex) {
-                previousFormatIndex = formatIndex;
-            }
-
-            output << "\n";
+            traceInternal(std::cout, format, args);
 
             va_end(args);
         }
 
-        void warning(std::ostream& output, const char* format, ...) {
-            messageCount[(int)Level::WARNING]++;
-            messageCount[(int)Level::LEVEL_COUNT]++;
-            //set color (warning color)
+        void traceToString(std::ostream& output, const char* format, ...) {
+            va_list args;
+            va_start(args, format);
+
+            traceInternal(output, format, args);
+
+            va_end(args);
         }
 
-        void error(std::ostream& output, const char* format, ...) {
-            messageCount[(int)Level::ERROR]++;
-            messageCount[(int)Level::LEVEL_COUNT]++;
-            //set color (error color)
+        void warning() {
+
         }
 
-        void critical(std::ostream& output, const char* format, ...) {
-            messageCount[(int)Level::CRITICAL_ERROR]++;
-            messageCount[(int)Level::LEVEL_COUNT]++;
-            //set color (critical color)
+        void error() {
+
+        }
+
+        void critical() {
+
         }
 
         /**
@@ -231,7 +221,7 @@ class DebugLogger {
         bool removeVariable(const std::string& name) {
             std::map<std::string, DebugVar>::iterator v = variables.find(name);
 
-            if(v != variables.end()) {
+            if(v != variables.end() && !v->second.getReadonly()) {
                 variables.erase(v);
                 return true;
             }
@@ -240,6 +230,50 @@ class DebugLogger {
         }
 
     private:
+        bool addInternalVariable(const std::string& name, void* variable, DebugVarType type) {
+            if(variables.find(name) == variables.end()) {
+                variables.emplace(std::pair<std::string, DebugVar>({name, DebugVar(type, variable, true)}));
+                return true;
+            }
+
+            return false;
+        }
+
+        void traceInternal(std::ostream& output, const char* format, va_list args) {
+            messageCount[(int)Level::TRACE]++;
+            messageCount[(int)Level::LEVEL_COUNT]++;
+
+            //set color (trace color)
+            int len = (int)strlen(format);
+            int formatIndex = 0;
+            int previousFormatIndex = -1;
+
+            //process and print arguments
+            while(printNextArgument(output, format, formatIndex, args) && formatIndex < len && formatIndex != previousFormatIndex) {
+                previousFormatIndex = formatIndex;
+            }
+
+            output << "\n";
+        }
+
+        void warningInternal(std::ostream& output, const char* format, ...) {
+            messageCount[(int)Level::WARNING]++;
+            messageCount[(int)Level::LEVEL_COUNT]++;
+            //set color (warning color)
+        }
+
+        void errorInternal(std::ostream& output, const char* format, ...) {
+            messageCount[(int)Level::ERROR]++;
+            messageCount[(int)Level::LEVEL_COUNT]++;
+            //set color (error color)
+        }
+
+        void criticalInternal(std::ostream& output, const char* format, ...) {
+            messageCount[(int)Level::CRITICAL_ERROR]++;
+            messageCount[(int)Level::LEVEL_COUNT]++;
+            //set color (critical color)
+        }
+
         /**
          * contains information representing a token
          * */
@@ -270,7 +304,10 @@ class DebugLogger {
         };
 
         Token currentToken;
-
+        
+        /**
+         * Loads the next identifier
+         * */
         bool getIdentifier(const char* format, int& index) {
             if(isAlpha(format, index) || format[index] == '_') {
             }
@@ -289,6 +326,9 @@ class DebugLogger {
             return true;
         }
 
+        /**
+         * Returns the next one or two character token
+         * */
         bool getNextToken(const char* format, int& index) {
             skipWhitespace(format, index);
 
@@ -386,6 +426,9 @@ class DebugLogger {
             }
         }
 
+        /**
+         * Returns the next number
+         * */
         void getNumber(const char* format, int& index) {
             currentToken.type = Token::TokenType::NUMBER;
             currentToken.lexemeStart = format + index;
@@ -397,6 +440,9 @@ class DebugLogger {
             currentToken.lexemeEnd = format + index;
         }
 
+        /**
+         * Enumerates all formatting options supplied by the user
+         * */
         void collectFormattingOptions(const char* format, int& index, int& capitalized, bool& rightAligned, bool& unsignedValue, std::string& v, int& spaceCount, int& spaceCount_dec, bool& fillZero, int& outputFormat) { 
             bool foundDecimal = false;
 
@@ -458,7 +504,10 @@ class DebugLogger {
             }
         }
 
-        void printVariable(const char* format, int& index, va_list args) {
+        /**
+         * Prints the variable
+         * */
+        void printVariable(std::ostream& output, const char* format, int& index, va_list args) {
             //0 for no change, 1 for upper, 2 for lower
             int capitalized = CAPITALIZEDFORMAT_NONE;
             bool rightAligned = false;
@@ -480,37 +529,37 @@ class DebugLogger {
                     case DebugVarType::CHAR:
                         {
                             char value = var->second.getChar();
-                            printFormattedChar(value, capitalized, rightAligned, setSpaceCount);
+                            printFormattedChar(output, value, capitalized, rightAligned, setSpaceCount);
                         }
                         break;
                     case DebugVarType::INTEGER32:
                         {
                             uint32_t value = var->second.getInt32();
-                            printFormattedInteger(value, rightAligned, setSpaceCount, outputFormat, unsignedValue, fillZero, false);
+                            printFormattedInteger(output, value, rightAligned, setSpaceCount, outputFormat, unsignedValue, fillZero, false);
                         }
                         break;
                     case DebugVarType::INTEGER64:
                         {
                             uint64_t value = var->second.getInt64();
-                            printFormattedInteger(value, rightAligned, setSpaceCount, outputFormat, unsignedValue, fillZero, true);
+                            printFormattedInteger(output, value, rightAligned, setSpaceCount, outputFormat, unsignedValue, fillZero, true);
                         }
                         break;
                     case DebugVarType::FLOAT32:
                         {
                             float value = var->second.getFloat32();
-                            printFormattedFloat(value, rightAligned, setSpaceCount, setSpaceCount_dec, fillZero);
+                            printFormattedFloat(output, value, rightAligned, setSpaceCount, setSpaceCount_dec, fillZero);
                         }
                         break;
                     case DebugVarType::FLOAT64:
                         {
                             double value = var->second.getFloat64();
-                            printFormattedFloat(value, rightAligned, setSpaceCount, setSpaceCount_dec, fillZero);
+                            printFormattedFloat(output, value, rightAligned, setSpaceCount, setSpaceCount_dec, fillZero);
                         }
                         break;
                     case DebugVarType::STRING:
                         {
                             const char* value = var->second.getString();
-                            printFormattedString(value, capitalized, rightAligned, setSpaceCount);
+                            printFormattedString(output, value, capitalized, rightAligned, setSpaceCount);
                         }
                         break;
                 }
@@ -576,7 +625,7 @@ class DebugLogger {
 
         double powers10[6] = { 10, 100, 1000, 10000, 100000, 1000000 };
 
-        void printFormattedFloat(double value, bool right, int spaces, int decSpaces, bool fillZero) {
+        void printFormattedFloat(std::ostream& output, double value, bool right, int spaces, int decSpaces, bool fillZero) {
             decSpaces = (decSpaces == -1)? 6 : decSpaces;
             int tmpDecSpaces = decSpaces;
             decSpaces = std::max(0, decSpaces);
@@ -597,7 +646,7 @@ class DebugLogger {
             decSpaces = tmpDecSpaces;
 
             std::string toPrint(std::to_string(value));
-            int decLoc = (int)toPrint.find(".");
+            int decLoc = (int)toPrint.find('.');
             int len = 0;
 
             if(decLoc != -1) {
@@ -610,7 +659,6 @@ class DebugLogger {
                 if(decSpaces != 0) {
                     len += decSpaces + 1;
                     toPrint += '.';
-                    std::cout << toPrint << "\n";
                 }
             }
 
@@ -618,44 +666,44 @@ class DebugLogger {
             if(right) {
                 for(int i = 0; i < spaces - len; ++i) {
                     if(fillZero) {
-                        printf("0");
+                        output << '0';
                     }
                     else {
-                        printf(" ");
+                        output << ' ';
                     }
                 }
 
                 for(int i = 0; i < len; ++i) {
                     if(i < toPrint.size()) {
-                        printf("%c", toPrint[i]);
+                        output << toPrint[i];
                     }
                     else {
-                        printf("0");
+                        output << '0';
                     }
                 }
             }
             else {
                 for(int i = 0; i < len; ++i) {
                     if(i < toPrint.size()) {
-                        printf("%c", toPrint[i]);
+                        output << toPrint[i];
                     }
                     else {
-                        printf("0");
+                        output << '0';
                     }
                 }
 
                 for(int i = 0; i < spaces - len; ++i) {
                     if(fillZero) {
-                        printf("0");
+                        output << '0';
                     }
                     else {
-                        printf(" ");
+                        output << ' ';
                     }
                 }
             }
         }
 
-        void printFormattedStringRaw(const char* toPrint, int cap, int len) {
+        void printFormattedStringRaw(std::ostream& output, const char* toPrint, int cap, int len) {
             for(int i = 0; i < len; ++i) {
                 char next = toPrint[i];
 
@@ -670,26 +718,26 @@ class DebugLogger {
             }
         }
 
-        void printFormattedString(const char* toPrint, int cap, bool right, int space) {
+        void printFormattedString(std::ostream& output, const char* toPrint, int cap, bool right, int space) {
             int len = (int)strlen(toPrint);
 
             if(right) {
                 for(int i = 0; i < space - len; ++i) {
-                    printf(" ");
+                    output << ' ';
                 }
 
-                printFormattedStringRaw(toPrint, cap, len);
+                printFormattedStringRaw(output, toPrint, cap, len);
             }
             else {
-                printFormattedStringRaw(toPrint, cap, len);
+                printFormattedStringRaw(output, toPrint, cap, len);
 
                 for(int i = 0; i < space - len; ++i) {
-                    printf(" ");
+                    output << ' ';
                 }
             }
         }
 
-        void printFormattedInteger(uint64_t value, bool right, int space, int outputFormat, bool unsignedMark, bool fillZero, bool longlong) {
+        void printFormattedInteger(std::ostream& output, uint64_t value, bool right, int space, int outputFormat, bool unsignedMark, bool fillZero, bool longlong) {
             char buffer[129];
             buffer[128] = 0;
             int len = 0;
@@ -726,21 +774,21 @@ class DebugLogger {
             if(right) {
                 for(int i = 0; i < space - len; ++i) {
                     if(fillZero) {
-                        printf("0");
+                        output << "0";
                     }
                     else {
-                        printf(" ");
+                        output << " ";
                     }
                 }
 
-                printf("%s", buffer);
+                output << buffer;
             }
             else {
-                printf("%s", buffer);
+                output << buffer;
             }
         }
 
-        void printFormattedChar(char value, int cap, bool right, int space) {
+        void printFormattedChar(std::ostream& output, char value, int cap, bool right, int space) {
             if(cap == 1) {
                 value = std::toupper(value);
             }
@@ -750,21 +798,21 @@ class DebugLogger {
 
             if(right) {
                 for(int i = 0; i < space - 1; ++i) {
-                    printf(" ");
+                    output << " ";
                 }
 
-                printf("%c", value);
+                output << value;
             }
             else {
-                printf("%c", value);
+                output << value;
 
                 for(int i = 0; i < space - 1; ++i) {
-                    printf(" ");
+                    output << " ";
                 }
             }
         }
 
-        void printArgument(const char* format, int& index, va_list args) {
+        void printArgument(std::ostream& output, const char* format, int& index, va_list args) {
             //implement variable grammar here
             index++;
             while(format[index] != '}' && format[index]) {
@@ -786,18 +834,18 @@ class DebugLogger {
          * @param args the argument list
          * @return true if there is more to the string
          * */
-        bool printNextArgument(const char* format, int& index, va_list args) {
+        bool printNextArgument(std::ostream& outputStream, const char* format, int& index, va_list args) {
             switch(format[index]) {
                 case '[':
-                    printVariable(format, index, args);
+                    printVariable(outputStream, format, index, args);
                     break;
                 case '{':
-                    printArgument(format, index, args);
+                    printArgument(outputStream, format, index, args);
                     break;
                 case '\\':
                     index++;
                 default:
-                    printf("%c", format[index]);
+                    outputStream << format[index];
                     break;
             }
 
@@ -832,9 +880,10 @@ class DebugLogger {
         struct DebugVar {
             public:
 
-                DebugVar(DebugVarType type, void* value) 
+                DebugVar(DebugVarType type, void* value, bool readOnly = false) 
                     :type(type),
-                    value(value)
+                    value(value),
+                    readonly(readOnly)
                 {
                 }
 
@@ -878,9 +927,14 @@ class DebugLogger {
                     return type;
                 }
 
+                bool getReadonly() {
+                    return readonly;
+                }
+
             private:
                 DebugVarType type;
                 void* value;
+                bool readonly = false;
         };
 
         bool isNum(const char* format, int& index) {
