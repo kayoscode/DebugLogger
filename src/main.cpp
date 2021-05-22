@@ -3,8 +3,6 @@
 
 int main() {
     DebugLogger logger;
-    char c = 'c';
-    logger.addVariable("newChar", &c, DebugVarType::CHAR);
-    logger.trace("[newChar]");
+    logger.trace("This is a test {^c}", 'a');
     return 0;
 }

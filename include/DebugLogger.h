@@ -96,22 +96,33 @@ class DebugLogger {
 
             //char pnemonics
             reserves["char"] = Token::TokenType::SIGNED_CHAR;
-
-            //short pnemoincs
-            reserves["short"] = Token::TokenType::SIGNED_SHORT;
-            reserves["ushort"] = Token::TokenType::SIGNED_SHORT;
+            reserves["c"] = Token::TokenType::SIGNED_CHAR;
 
             //int pnemonics
             reserves["int"] = Token::TokenType::SIGNED_INT;
+            reserves["i"] = Token::TokenType::SIGNED_INT;
+            reserves["d"] = Token::TokenType::SIGNED_INT;
             reserves["uint"] = Token::TokenType::SIGNED_INT;
+            reserves["ui"] = Token::TokenType::SIGNED_INT;
+            reserves["u"] = Token::TokenType::SIGNED_INT;
 
             //long pneumonics
             reserves["long"] = Token::TokenType::SIGNED_LONG;
+            reserves["l"] = Token::TokenType::SIGNED_LONG;
             reserves["ulong"] = Token::TokenType::SIGNED_LONG;
+            reserves["ul"] = Token::TokenType::SIGNED_LONG;
 
             //float pnemoinics
             reserves["float"] = Token::TokenType::FLOAT;
+            reserves["flt"] = Token::TokenType::FLOAT;
+            reserves["f"] = Token::TokenType::FLOAT;
 
+            //str pneumonics
+            reserves["string"] = Token::TokenType::STRING;
+            reserves["str"] = Token::TokenType::STRING;
+            reserves["s"] = Token::TokenType::STRING;
+
+            setPrefix("[>04dmc]: ");
         }
 
         ~DebugLogger() {
@@ -176,7 +187,7 @@ class DebugLogger {
             va_end(args);
         }
 
-        void traceToString(std::ostream& output, const char* format, ...) {
+        void traceToStream(std::ostream& output, const char* format, ...) {
             va_list args;
             va_start(args, format);
 
@@ -230,6 +241,9 @@ class DebugLogger {
         }
 
     private:
+        /**
+         * Adds a variable that cannot be removed
+         * */
         bool addInternalVariable(const std::string& name, void* variable, DebugVarType type) {
             if(variables.find(name) == variables.end()) {
                 variables.emplace(std::pair<std::string, DebugVar>({name, DebugVar(type, variable, true)}));
@@ -239,9 +253,15 @@ class DebugLogger {
             return false;
         }
 
-        void traceInternal(std::ostream& output, const char* format, va_list args) {
+        /**
+         * Internal trace handler
+         * */
+        void traceInternal(std::ostream& output, const char* format, va_list& args) {
             messageCount[(int)Level::TRACE]++;
             messageCount[(int)Level::LEVEL_COUNT]++;
+
+            //print prefix to message using only internal variables
+            printPrefix(output, Level::TRACE);
 
             //set color (trace color)
             int len = (int)strlen(format);
@@ -249,7 +269,7 @@ class DebugLogger {
             int previousFormatIndex = -1;
 
             //process and print arguments
-            while(printNextArgument(output, format, formatIndex, args) && formatIndex < len && formatIndex != previousFormatIndex) {
+            while(printNext(output, format, formatIndex, args) && formatIndex < len && formatIndex != previousFormatIndex) {
                 previousFormatIndex = formatIndex;
             }
 
@@ -411,13 +431,6 @@ class DebugLogger {
                 //check to see if the identifier was actually a reserve
                 std::string v(currentToken.lexemeStart, currentToken.lexemeEnd);
 
-                std::map<std::string, Token::TokenType>::iterator t = reserves.find(v);
-
-                if(t != reserves.end()) {
-                    //its actually a reserve word
-                    currentToken.type = t->second;
-                }
-
                 return true;
             }
             else {
@@ -443,12 +456,12 @@ class DebugLogger {
         /**
          * Enumerates all formatting options supplied by the user
          * */
-        void collectFormattingOptions(const char* format, int& index, int& capitalized, bool& rightAligned, bool& unsignedValue, std::string& v, int& spaceCount, int& spaceCount_dec, bool& fillZero, int& outputFormat) { 
+        void collectFormattingOptions(const char* format, int& index, int& capitalized, bool& rightAligned, bool& unsignedValue, std::string& v, int& spaceCount, int& spaceCount_dec, bool& fillZero, int& outputFormat, char end) { 
             bool foundDecimal = false;
 
             //implement variable grammar here
             index++;
-            while(format[index] != ']' && format[index]) {
+            while(format[index] != end && format[index]) {
                 if(!getNextToken(format, index)) {
                     break;
                 }
@@ -507,7 +520,7 @@ class DebugLogger {
         /**
          * Prints the variable
          * */
-        void printVariable(std::ostream& output, const char* format, int& index, va_list args) {
+        void printVariable(std::ostream& output, const char* format, int& index, va_list& args) {
             //0 for no change, 1 for upper, 2 for lower
             int capitalized = CAPITALIZEDFORMAT_NONE;
             bool rightAligned = false;
@@ -518,7 +531,7 @@ class DebugLogger {
             bool fillZero = false;
             int outputFormat = OUTPUTFORMAT_DECIMAL;
 
-            collectFormattingOptions(format, index, capitalized, rightAligned, unsignedValue, variableName, setSpaceCount, setSpaceCount_dec, fillZero, outputFormat);
+            collectFormattingOptions(format, index, capitalized, rightAligned, unsignedValue, variableName, setSpaceCount, setSpaceCount_dec, fillZero, outputFormat, ']');
 
             //now that we have reached the end, we can go ahead and print the variable
             //lets check if it exists first
@@ -564,7 +577,6 @@ class DebugLogger {
                         break;
                 }
             }
-            //otherwise skip printing and continue (for now, perhaps an error msg in the print string)
         }
 
         /**
@@ -812,16 +824,52 @@ class DebugLogger {
             }
         }
 
-        void printArgument(std::ostream& output, const char* format, int& index, va_list args) {
-            //implement variable grammar here
-            index++;
-            while(format[index] != '}' && format[index]) {
-                if(!getNextToken(format, index)) {
-                    break;
-                }
+        void printArgument(std::ostream& output, const char* format, int& index, va_list& args) {
+            int capitalized = CAPITALIZEDFORMAT_NONE;
+            bool rightAligned = false;
+            bool unsignedValue = false;
+            std::string type;
+            int setSpaceCount = -1;
+            int setSpaceCount_dec = -1;
+            bool fillZero = false;
+            int outputFormat = OUTPUTFORMAT_DECIMAL;
 
-                skipWhitespace(format, index);
+            collectFormattingOptions(format, index, capitalized, rightAligned, unsignedValue, type, setSpaceCount, setSpaceCount_dec, fillZero, outputFormat, '}');
+
+            //lookup table to determine the variable type
+            std::map<std::string, Token::TokenType>::iterator t = reserves.find(type);
+            Token::TokenType argumentType;
+
+            if(t != reserves.end()) {
+                //its actually a reserve word
+                argumentType = t->second;
+
+                if(argumentType == Token::TokenType::SIGNED_CHAR) {
+                    //collect char from VA args and print
+                    char ch = va_arg(args, int);
+                    printFormattedChar(output, ch, capitalized, rightAligned, setSpaceCount);
+                }
+                else if(argumentType == Token::TokenType::SIGNED_INT) {
+                    uint32_t val = va_arg(args, uint32_t);
+                    printFormattedInteger(output, val, rightAligned, setSpaceCount, outputFormat, unsignedValue || type[0] == 'u', fillZero, false);
+                }
+                else if(argumentType == Token::TokenType::SIGNED_LONG) {
+                    uint64_t val = va_arg(args, uint64_t);
+                    printFormattedInteger(output, val, rightAligned, setSpaceCount, outputFormat, unsignedValue || type[0] == 'u', fillZero, true);
+                }
+                else if(argumentType == Token::TokenType::FLOAT) {
+                    double val = va_arg(args, double);
+                    printFormattedFloat(output, val, rightAligned, setSpaceCount, setSpaceCount_dec, fillZero);
+                }
+                else if(argumentType == Token::TokenType::STRING) {
+                    const char* strValue = (const char*)va_arg(args, void*);
+                    printFormattedString(output, strValue, capitalized, rightAligned, setSpaceCount);
+                }
+                else {
+                    //unrecognized type, ignore it
+                }
             }
+            //otherwise the type was not recognized, ignore it
         }
 
         /**
@@ -834,7 +882,7 @@ class DebugLogger {
          * @param args the argument list
          * @return true if there is more to the string
          * */
-        bool printNextArgument(std::ostream& outputStream, const char* format, int& index, va_list args) {
+        bool printNext(std::ostream& outputStream, const char* format, int& index, va_list& args) {
             switch(format[index]) {
                 case '[':
                     printVariable(outputStream, format, index, args);
@@ -869,8 +917,8 @@ class DebugLogger {
         /*
         * prints to the output stream the debug format
         */
-        void printPrefix() {
-
+        void printPrefix(std::ostream& output, Level level) {
+            output << prefixFormat[(int)level];
         }
 
         /**
