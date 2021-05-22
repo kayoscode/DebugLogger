@@ -357,11 +357,25 @@ class DebugLogger {
          * @return true if the variable was added successfully, false if the variable is conflicting with other variables
          * */
         bool addVariable(const std::string& name, void* variable, DebugVarType type) {
-            if(variables.find(name) == variables.end()) {
-                variables.emplace(std::pair<std::string, DebugVar>({name, DebugVar(type, variable)}));
-                return true;
+            //validate variable
+            const char* varName = name.c_str();
+            int index = 0;
+            if(isAlpha(varName, index) || varName[0] == '_') {
+                index++;
+
+                while(varName[index] && (isAlpha(varName, index) || varName[index] == '_' || isNum(varName, index))) {
+                    index++;
+                }
+                
+                if(index == name.size()) {
+                    if(variables.find(name) == variables.end()) {
+                        variables.emplace(std::pair<std::string, DebugVar>({name, DebugVar(type, variable)}));
+                        return true;
+                    }
+                }
             }
 
+            //improper var name or something
             return false;
         } 
 
@@ -840,6 +854,8 @@ class DebugLogger {
         }
 
         void printFormattedStringRaw(std::ostream& output, const char* toPrint, int cap, int len) {
+            std::string buffer(toPrint, toPrint + len);
+
             for(int i = 0; i < len; ++i) {
                 char next = toPrint[i];
 
@@ -850,8 +866,10 @@ class DebugLogger {
                     next = std::tolower(next);
                 }
 
-                printf("%c", next);
+                buffer[i] = next;
             }
+
+            output << buffer;
         }
 
         void printFormattedString(std::ostream& output, const char* toPrint, int cap, bool right, int space) {
@@ -1026,7 +1044,7 @@ class DebugLogger {
                     break;
                 case '{':
                     //this also escapes itself in the exact same way as the other one
-                    if(format[index + 1] == '}') {
+                    if(format[index + 1] == '{') {
                         index++;
                         outputStream << format[index];
                     }
