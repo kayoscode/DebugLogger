@@ -6,6 +6,8 @@
 #include <map>
 #include <string>
 #include <stdarg.h>
+#include <sstream>
+
 #include "Timer.h"
 
 constexpr int OUTPUTFORMAT_DECIMAL = 0;
@@ -62,9 +64,10 @@ enum class DebugVarType {
  * */
 class DebugLogger {
     public:
-        DebugLogger(const std::string& loggerName = "Debug:", Level level = Level::WARNING) 
+        DebugLogger(const std::string& loggerName = "Debug:") 
             :level(level)
         {
+            this->level = Level::CRITICAL_ERROR;
             totalNanoseconds = 0;
 
             for(int i = 0; i <= (int)Level::LEVEL_COUNT; ++i) {
@@ -131,6 +134,13 @@ class DebugLogger {
             //level message count
             addInternalVariable("lmc", &currentMessageCount, DebugVarType::INTEGER64);
 
+            //helpful characters
+            addInternalVariable("lbc", &specialCharacters[0], DebugVarType::CHAR);
+            addInternalVariable("rbc", &specialCharacters[1], DebugVarType::CHAR);
+            addInternalVariable("lbk", &specialCharacters[2], DebugVarType::CHAR);
+            addInternalVariable("rbk", &specialCharacters[3], DebugVarType::CHAR);
+            addInternalVariable("bks", &specialCharacters[4], DebugVarType::CHAR);
+
             //char pnemonics
             reserves["char"] = Token::TokenType::SIGNED_CHAR;
             reserves["ch"] = Token::TokenType::SIGNED_CHAR;
@@ -160,8 +170,10 @@ class DebugLogger {
             reserves["str"] = Token::TokenType::STRING;
             reserves["s"] = Token::TokenType::STRING;
 
-            setPrefix("[3ln]~[.2etl] [[[>05lmc]]]: ");
+            setPrefix("[3ln]~[.2etl] \\[[>05lmc]\\]: ");
             timer.reset();
+
+            std::cout << specialCharacters[5] << "\n";
         }
 
         ~DebugLogger() {
@@ -404,9 +416,13 @@ class DebugLogger {
          * @param args the va arguments as a reference
          * @param level the current log level
          * */
-        inline void logInternal(std::ostream& output, const char* format, va_list& args) {
+        inline void logInternal(std::ostream& output, const char* format, va_list& args, bool recursive = false) {
+            std::stringstream outputLine;
+
             //print prefix to message using only internal variables
-            printPrefix(output, level);
+            if(!recursive) {
+                printPrefix(outputLine, level);
+            }
 
             //set color (trace color)
             int len = (int)strlen(format);
@@ -414,11 +430,15 @@ class DebugLogger {
             int previousFormatIndex = -1;
 
             //process and print arguments
-            while(printNext(output, format, formatIndex, args) && formatIndex < len && formatIndex != previousFormatIndex) {
+            while(printNext(outputLine, format, formatIndex, args) && formatIndex < len && formatIndex != previousFormatIndex) {
                 previousFormatIndex = formatIndex;
             }
 
-            output << "\n";
+            if(!recursive) {
+                outputLine << "\n";
+            }
+
+            output << outputLine.str();
         }
 
         /**
@@ -429,6 +449,7 @@ class DebugLogger {
                 CAPITAL,
                 LOWER,
                 RIGHT,
+                FORMATTED_STRING,
                 FILL_ZERO,
                 ZERO_DECIMALS,
                 VARIABLE_NAME,
@@ -471,6 +492,10 @@ class DebugLogger {
 
             currentToken.lexemeEnd = format + index;
             return true;
+        }
+
+        bool isPartOfIdentifier(char c) {
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
         }
 
         /**
@@ -529,21 +554,21 @@ class DebugLogger {
 
                 return true;
             }
-            else if(format[index] == 'x') {
+            else if(format[index] == 'x' && !isPartOfIdentifier(format[index + 1])) {
                 currentToken.type = Token::TokenType::HEX_MODIFIER;
                 currentToken.lexemeStart = format + index;
                 currentToken.lexemeEnd = format + index + 1;
                 index++;
                 return true;
             }
-            else if(format[index] == 'X') {
+            else if(format[index] == 'X' && !isPartOfIdentifier(format[index + 1])) {
                 currentToken.type = Token::TokenType::CAPITAL_HEX_MODIFIER;
                 currentToken.lexemeStart = format + index;
                 currentToken.lexemeEnd = format + index + 1;
                 index++;
                 return true;
             }
-            else if(format[index] == 'b') {
+            else if(format[index] == 'b' && !isPartOfIdentifier(format[index + 1])) {
                 currentToken.type = Token::TokenType::BINARY_MODIFIER;
                 currentToken.lexemeStart = format + index;
                 currentToken.lexemeEnd = format + index + 1;
@@ -552,6 +577,38 @@ class DebugLogger {
             }
             else if(isNum(format, index)) {
                 getNumber(format, index);
+                return true;
+            }
+            else if(format[index] == '\'') {
+                //increment index because the start of the string doesn't include the quote
+                index++;
+                currentToken.type = Token::TokenType::FORMATTED_STRING;
+                currentToken.lexemeStart = format + index;
+                currentToken.lexemeEnd = currentToken.lexemeStart;
+
+                //load the string until the closing brace is found
+                int depth = 1;
+
+                while(depth > 0 && format[index]) {
+                    if(format[index] == '\\') {
+                        if(format[index + 1]) {
+                            index++;
+                        }
+                    }
+                    else if(format[index] == '}') {
+                        depth--;
+                    }
+                    else if(format[index] == '{') {
+                        depth++;
+                    }
+
+                    index++;
+                }
+
+                //we have to move to the previous close because the program is looking for a close brace
+                index--;
+                currentToken.lexemeEnd = format + index;
+
                 return true;
             }
             else if(getIdentifier(format, index)) {
@@ -583,7 +640,7 @@ class DebugLogger {
         /**
          * Enumerates all formatting options supplied by the user
          * */
-        void collectFormattingOptions(const char* format, int& index, int& capitalized, bool& rightAligned, bool& unsignedValue, std::string& v, int& spaceCount, int& spaceCount_dec, bool& fillZero, int& outputFormat, char end) { 
+        void collectFormattingOptions(const char* format, int& index, int& capitalized, bool& rightAligned, bool& unsignedValue, std::string& v, int& spaceCount, int& spaceCount_dec, bool& fillZero, int& outputFormat, std::string& formattedString, char end) { 
             bool foundDecimal = false;
 
             //implement variable grammar here
@@ -636,6 +693,12 @@ class DebugLogger {
                 else if(currentToken.type == Token::TokenType::BINARY_MODIFIER) {
                     outputFormat = OUTPUTFORMAT_BIN;
                 }
+                else if(currentToken.type == Token::TokenType::FORMATTED_STRING) {
+                    formattedString = std::string(currentToken.lexemeStart, currentToken.lexemeEnd);
+                    if(formattedString.size() == 0) {
+                        formattedString = " ";
+                    }
+                }
                 else {
                     v = std::string(currentToken.lexemeStart, currentToken.lexemeEnd);
                 }
@@ -653,12 +716,13 @@ class DebugLogger {
             bool rightAligned = false;
             bool unsignedValue = false;
             std::string variableName;
+            std::string formattedString;
             int setSpaceCount = -1;
             int setSpaceCount_dec = -1;
             bool fillZero = false;
             int outputFormat = OUTPUTFORMAT_DECIMAL;
 
-            collectFormattingOptions(format, index, capitalized, rightAligned, unsignedValue, variableName, setSpaceCount, setSpaceCount_dec, fillZero, outputFormat, ']');
+            collectFormattingOptions(format, index, capitalized, rightAligned, unsignedValue, variableName, setSpaceCount, setSpaceCount_dec, fillZero, outputFormat, formattedString, ']');
 
             //now that we have reached the end, we can go ahead and print the variable
             //lets check if it exists first
@@ -969,18 +1033,26 @@ class DebugLogger {
             bool rightAligned = false;
             bool unsignedValue = false;
             std::string type;
+            std::string formattedString;
             int setSpaceCount = -1;
             int setSpaceCount_dec = -1;
             bool fillZero = false;
             int outputFormat = OUTPUTFORMAT_DECIMAL;
 
-            collectFormattingOptions(format, index, capitalized, rightAligned, unsignedValue, type, setSpaceCount, setSpaceCount_dec, fillZero, outputFormat, '}');
+            collectFormattingOptions(format, index, capitalized, rightAligned, unsignedValue, type, setSpaceCount, setSpaceCount_dec, fillZero, outputFormat, formattedString, '}');
 
             //lookup table to determine the variable type
             std::map<std::string, Token::TokenType>::iterator t = reserves.find(type);
             Token::TokenType argumentType;
 
-            if(t != reserves.end()) {
+            //if the formatted string specifier is set, it overrides the argument specifier
+            if(formattedString.size() > 0) {
+                std::stringstream nextOutput;
+
+                logInternal(nextOutput, formattedString.c_str(), args, true);
+                printFormattedString(output, nextOutput.str().c_str(), capitalized, rightAligned, setSpaceCount);
+            }
+            else if(t != reserves.end()) {
                 //its actually a reserve word
                 argumentType = t->second;
 
@@ -1007,6 +1079,7 @@ class DebugLogger {
                 }
                 else {
                     //unrecognized type, ignore it
+                    //an unspecified type is fine, just means we won't have to pull out a parameter, it could always be a formatted string
                 }
             }
             //otherwise the type was not recognized, ignore it
@@ -1026,40 +1099,20 @@ class DebugLogger {
             int startIndex = index;
 
             switch(format[index]) {
-                case '[':
-                    //[ escapes itself. If there are two in a row, it means to put [ as a raw character
-                    if(format[index + 1] == '[') {
+                case '\\':
+                    if(format[index + 1]) {
                         index++;
                         outputStream << format[index];
                     }
-                    else {
-                        printVariable(outputStream, format, index);
-                    }
+                    break;
+                case '[':
+                    printVariable(outputStream, format, index);
                     break;
                 case '{':
-                    //this also escapes itself in the exact same way as the other one
-                    if(format[index + 1] == '{') {
-                        index++;
-                        outputStream << format[index];
-                    }
-                    else {
-                        printArgument(outputStream, format, index, args);
-                    }
-                    break;
-                case ']':
-                    if(format[index + 1] == ']') {
-                        index++;
-                        outputStream << format[index];
-                    }
-                    break;
-                case '}':
-                    if(format[index + 1] == '}') {
-                        index++;
-                        outputStream << format[index];
-                    }
+                    printArgument(outputStream, format, index, args);
                     break;
                 default:
-                    while(format[index] != ']' && format[index] != '[' && format[index] != '{' && format[index] != '}' && format[index]) {
+                    while(format[index] != '[' && format[index] != '{' && format[index] != '}' && format[index] != ']' && format[index] != '\\' && format[index]) {
                         index++;
                     }
                     outputStream << std::string(format + startIndex, format + index);
@@ -1068,7 +1121,6 @@ class DebugLogger {
             }
 
             index++;
-
             return format[index];
         }
             
@@ -1080,24 +1132,17 @@ class DebugLogger {
             int startIndex = index;
 
             switch (format[index]) {
-                case '[':
-                    //escapes itself
-                    if(format[index + 1] == '[') {
+                case '\\':
+                    if(format[index + 1]) {
                         index++;
                         outputStream << format[index];
-                    }
-                    else {
-                        printVariable(outputStream, format, index);
                     }
                     break;
-                case ']':
-                    if(format[index + 1] == ']') {
-                        index++;
-                        outputStream << format[index];
-                    }
+                case '[':
+                    printVariable(outputStream, format, index);
                     break;
                 default:
-                    while(format[index] != ']' && format[index] != '[' && format[index] != '{' && format[index] != '}' && format[index]) {
+                    while(format[index] != '[' && format[index] != ']' && format[index] != '\\' && format[index]) {
                         index++;
                     }
 
@@ -1226,6 +1271,9 @@ class DebugLogger {
 
         //the logger's name
         std::string loggerName;
+
+        //special characters as internal variables
+        char specialCharacters[6] = "{}[]\\";
 
         //list of every usable variable
         std::map<std::string, DebugVar> variables;

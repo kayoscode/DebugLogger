@@ -1,5 +1,6 @@
 #include <iostream>
 #include "DebugLogger.h"
+#include <sstream>
 
 //example of using debug logger
 
@@ -8,7 +9,6 @@
  * The cmake code here is for compiling this demo
  * */
 int main() {
-    //create logger
     DebugLogger logger;
 
     //set prefix (prefix can only use internal variables and cannot deal with parameters)
@@ -30,9 +30,10 @@ int main() {
     //there are many default internal variables (please read the documentation for more details)
 
     //these variables can be used in PREFIXES!
-    //NOTE: the variable indicator can be escaped with itself, so [[ will output [ and ]] will output ]
-    logger.setPrefix("[ln]-[[[lmc]]]: ");
-    logger.trace("This prints the current level's name followed by a dash and the current number of messages in this level");
+    //NOTE the variable indicator can be escaped with a backslash which must be written in c and c++ as '\\'
+    //NOTE you can escape a backslash with a backslash. So to output a backslash, use four '\\\\'
+    logger.setPrefix("[ln]-\\[[lmc]\\]: ");
+    logger.trace("This prints the current level's name followed by a dash and the current number of messages in this level - \\\\\\]");
 
     //you can create your own internal variables!!
     //you just need a logger object, a pointer to the variable, as well as a type and size (int32 and int64 are DIFFERENT)
@@ -47,7 +48,7 @@ int main() {
     //this works a lot like printf where you write the format, and pass each variable in separately
     //there are various types of varaibles that can be printed indicated in the documentation. Each one has its printf alias and a more readable version
     //use a variable with curly braces. These can be escaped in the same was as the brackets
-    logger.trace("char: ({char}), int: ({d}), another int: ({int})", 'B', 16, -1);
+    logger.trace("char: {char}, int: {d}, another int: {int}", 'B', 16, -1);
 
     //FORMATING options
     //each argument and variable is formatted the exact same way, but the available formatting options vary between types
@@ -65,7 +66,9 @@ int main() {
     //formatting options may be applied in any order as long as they don't conflict. The main one that could conflict is the fill zero formatter.
     //that one is marked with a 0, so what could happen is if you put that right after the space option, it will treat it as part of the number
     //heres how to use it properly and how to print in hex
-    logger.trace("0x{>08xint}, 0x{X0long 16}", 0xDEAD, 0xBEEF);
+    //NOTE please include the binary for hex specifer in a way thats not attached to the type or variable, because that is conflicting
+    //at the very least, put a space between the x and the idnt
+    logger.trace("{>08X int}{x0long 16}", 0xDEAD, 0xBEEF);
     //by putting the zero specified before the space count, it treated it properly. As well as that, putting it after the x also works
     //notice how it doesn't matter where you put the space parameter as long as it cannot be confused with the type specifier or variable name. That's why there must be a space if you put it after
     //NOTE: the capitalization doesn't work on hex numbers. You have to use lowercase x or X to change the case.
@@ -73,9 +76,9 @@ int main() {
     //FORMATTING floats
 
     //lets combine what we learned 
-    //this is the default prefix. 
+    //this is a simple prefix with basic internal information
     //prints the name with 3 characters, prints the elapsed time in milliseconds to 2 decimal places, then prints the current level's message count with five digits filling in zeros
-    logger.setPrefix("[3ln]~[.2etl] [[[>05lmc]]]: ");
+    logger.setPrefix("[3ln]~[.2etl] \\[[>05lmc]\\]: ");
     double testVar = 100.156;
     logger.addVariable("testVar", &testVar, DebugVarType::FLOAT64);
 
@@ -86,14 +89,51 @@ int main() {
     testVar = -0.12338;
     logger.trace("{str}: [.4testVar], param 2 {{{>+3uint}}}, capitalized char: {^char}", "Now it's something different", 10, 'a');
 
-    //print the total program time using internal variables
-    //this prints the total time in milliseconds
-    logger.trace("The program has taken [.2tl]");
+    //RECURSIVE formats
+    //here it gets a little more complicated, but much more powerful!
+    //recursive formatting allows you to apply formatting to "sub-format strings" within each formatted string
+    //this allows you to easily create effective alignment properties within strings
+    
+    //to use, create a new argument specifier with {}, but don't include a type or argument as parameters (the argument will not be outputtint or skipped)
+    //when a sub-format is used, arguments are ignored
+    //use a single quote to indicate that it's a sub string, but do not terminate it with a single quote. The string ends when it reaches the closing bracket 
+    //basically: {'subformat}
+    logger.trace("(basic formatting) - {^'(recursive formatting)}");
+    
+    //because the quotes don't need to be terminated, you don't need to escape the single quotes within the string
+    logger.trace("{'other single quotes don't have to be escaped: 'this'}");
 
-    //of course you can use the other levels such as warning, critical, and error
-    //this tutorial only made use of trace
-    //this may seem harder to read than printf, but it's actually more logical, more customizable with the prefix and variables, and provides a couple more formatting options.
-    //its a learning curve in the same way as printf, but it's better in many ways except speed. It compares to cout in terms of speed.
+    //the formatting options applied to the outer format will be applied to the inner text output
+    logger.trace("{'this is a {^'sub {$str}}}", "FORMAT");
+    logger.trace("{$'THIS TEXT IS LOWERCASE {^'this text is also lowercase}}");
+
+    //of course when you modify spaces, the spaces on the outer format will be applied to the result of the inner formats
+    //this allows you to do alignment much better, here's an example
+    //if using printf, you cannot easily align inner items
+    //it leads to things like colons appearing out of place - 
+    logger.trace("{25str}: {str}", "Weird colon", "ALIGNED spaces");
+    logger.trace("{25str}: {str}", "Colon", "ALIGNED spaces");
+    //notice how the colon doesn't respond to the space the first string took up. In printf, this can be solved, but not in a quick way
+    //to fix that in this logger program, use recursive formatting! Like so
+    logger.trace("{25'{str}:} {str}", "Normal colon", "ALIGNED spaces");
+    logger.trace("{25'{str}:} {str}", "Colon", "ALIGNED spaces");
+    //notice how the text is still properly aligned, but the colon is attached to the first string instead of being in the middle
+
+    //notice how the quotes are added on to the end 
+    logger.trace("{'this is a {^'sub format'}'} -> The quotes were added to the end of the formatting because you don't need a closing single quote");
+
+    //you can use the escape back slash to print raw braces the same way as before
+    logger.trace("This are some braces in a sub format: {'\\{\\}\\[\\]\\}\\{\\]\\[}\\\\");
+
+    //of course you can access all parameters and variables as previously shown. The arguments will still be consumed in the order they appear within the string.
+    logger.trace("{10'{str}:} [>12.th]", "Hours");
+    logger.trace("{10'{str}:} [>12.tm]", "Minutes");
+    logger.trace("{10'{str}:} [>12.ts]", "Seconds");
+    logger.trace("{10'{str}:} [>12.tl]", "Millis");
+    logger.trace("{10'{str}:} [>12.ti]", "Micros");
+
+    logger.trace("[lbc][rbc][bks]");
+    logger.trace("{char}{char}{char}", '[', ']', '\\');
 
     return 0;
 }

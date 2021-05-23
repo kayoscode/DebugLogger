@@ -53,6 +53,11 @@ List of internal variables:
 20. emc: count of error messages sent
 21. cmc: count of critical messages sent
 21. lmc: count of messages sent on the current level
+22. bs: the character backslash: '\'
+23. lbk: the character left bracket: '['
+24. rbk: the character right bracket: ']'
+25. lbc: the character left brace: '{'
+26. rbc: the character right brace: '}'
 
 External variables can be created by the programmer. To do so, you need the variable and a pointer. 
 Undefined functionality if the variable goes out of scope and you try to use it in the debugger later!
@@ -206,3 +211,36 @@ Printing to alternative stream
 std::ofstream file("fileName.txt", std::ios::out);
 logger.traceToStream(file, "This will go to a file buffer");
 ```
+
+## Sub-formats
+Sub-formats allow you to apply formatting options to a formatting options to individual pieces of formatted text within a format. That is a simpler concept than it sounds. It just means that you can have a format inside of another format.
+
+It essentially takes the output of the sub-format and applies formatting options to it before printing it out.
+
+To use sub-formats, you have to use the argument access syntax with an open and close curly brace "{}". Instead of giving an argument type, you specify the formatting options, then add one single-quote. After that single quote, include the sub-format.
+```
+{'sub format}
+```
+
+The sub-format is terminated with the closing curly bracet, so you don't need a double quote.
+
+writing sub formats is simple, use code like the following
+```
+//prints: normal formatting Sub FORMAT
+logger.trace("Normal formatting {'Sub {^str}}", "format");
+```
+
+## Printing out [, ], {, }, and \
+To print out the special characters, it must be escaped with a backslash. Given that C++ automatically escapes '\\' to '\', to write an escape, simply use the double backslash. To print out a backslash, use four backslashes: '\\\\'
+```
+//prints: This are some braces in a sub format: {}[]}{][\
+logger.trace("This are some braces in a sub format: {'\\{\\}\\[\\]\\}\\{\\]\\[}\\\\");
+```
+
+Alternatively, each of these characters can be accessed with parameters, and there are default internal variables for each one.
+```
+//prints left and right braces
+logger.trace("[lbc][rbc]");
+logger.trace("{char}{char}", '[', ']');
+```
+For more information on these internal variables, see
