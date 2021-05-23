@@ -223,9 +223,10 @@ Sub-formats allow you to apply formatting options to a formatting options to ind
 
 It essentially takes the output of the sub-format and applies formatting options to it before printing it out.
 
-To use sub-formats, you have to use the argument access syntax with an open and close curly brace "{}". Instead of giving an argument type, you specify the formatting options, then add one single-quote. After that single quote, include the sub-format.
+To use sub-formats, you have to use the variable access syntax with an open and close curly brace "[]". Instead of giving an variable name, you specify the formatting options, then add one single-quote. After that single quote, include the sub-format.
+Any variable name put in where the formatting arguments are will not be printed, only the formatting string and its corresponding formats
 ```
-{'sub format}
+['sub format]
 ```
 
 The sub-format is terminated with the closing curly bracet, so you don't need a double quote.
@@ -233,14 +234,14 @@ The sub-format is terminated with the closing curly bracet, so you don't need a 
 writing sub formats is simple, use code like the following
 ```
 //prints: normal formatting Sub FORMAT
-logger.trace("Normal formatting {'Sub {^str}}", "format");
+logger.trace("Normal formatting ['Sub {^str}]", "format");
 ```
 
 ## Printing out [, ], {, }, and \
 To print out the special characters, it must be escaped with a backslash. Given that C++ automatically escapes '\\' to '\', to write an escape, simply use the double backslash. To print out a backslash, use four backslashes: '\\\\'
 ```
 //prints: This are some braces in a sub format: {}[]}{][\
-logger.trace("This are some braces in a sub format: {'\\{\\}\\[\\]\\}\\{\\]\\[}\\\\");
+logger.trace("This are some braces in a sub format: ['\\{\\}\\[\\]\\}\\{\\]\\[]\\\\");
 ```
 
 Alternatively, each of these characters can be accessed with parameters, and there are default internal variables for each one.

@@ -435,7 +435,7 @@ class DebugLogger {
 
             //print prefix to message using only internal variables
             if(!recursive) {
-                printPrefix(outputLine, level);
+                printPrefix(outputLine, level, args);
             }
 
             //set color (trace color)
@@ -519,7 +519,7 @@ class DebugLogger {
         /**
          * Returns the next one or two character token
          * */
-        bool getNextToken(const char* format, int& index) {
+        bool getNextToken(const char* format, int& index, char end) {
             skipWhitespace(format, index);
 
             if(format[index] == '^') {
@@ -598,6 +598,7 @@ class DebugLogger {
                 return true;
             }
             else if(format[index] == '\'') {
+                char start = (end == ']')? '[' : '{';
                 //increment index because the start of the string doesn't include the quote
                 index++;
                 currentToken.type = Token::TokenType::FORMATTED_STRING;
@@ -613,10 +614,10 @@ class DebugLogger {
                             index++;
                         }
                     }
-                    else if(format[index] == '}') {
+                    else if(format[index] == end) {
                         depth--;
                     }
-                    else if(format[index] == '{') {
+                    else if(format[index] == start) {
                         depth++;
                     }
 
@@ -664,7 +665,7 @@ class DebugLogger {
             //implement variable grammar here
             index++;
             while(format[index] != end && format[index]) {
-                if(!getNextToken(format, index)) {
+                if(!getNextToken(format, index, end)) {
                     break;
                 }
 
@@ -728,7 +729,7 @@ class DebugLogger {
         /**
          * Prints the variable
          * */
-        void printVariable(std::ostream& output, const char* format, int& index) {
+        void printVariable(std::ostream& output, const char* format, int& index, va_list& args) {
             //0 for no change, 1 for upper, 2 for lower
             int capitalized = CAPITALIZEDFORMAT_NONE;
             bool rightAligned = false;
@@ -746,7 +747,14 @@ class DebugLogger {
             //lets check if it exists first
             std::map<std::string, DebugVar>::iterator var = variables.find(variableName);
 
-            if(var != variables.end()) {
+            //if the formatted string specifier is set, it overrides the argument specifier
+            if(formattedString.size() > 0) {
+                std::stringstream nextOutput;
+
+                logInternal(nextOutput, formattedString.c_str(), args, true);
+                printFormattedString(output, nextOutput.str().c_str(), capitalized, rightAligned, setSpaceCount);
+            }
+            else if(var != variables.end()) {
                 switch(var->second.getType()) {
                     case DebugVarType::CHAR:
                         {
@@ -1063,14 +1071,7 @@ class DebugLogger {
             std::map<std::string, Token::TokenType>::iterator t = reserves.find(type);
             Token::TokenType argumentType;
 
-            //if the formatted string specifier is set, it overrides the argument specifier
-            if(formattedString.size() > 0) {
-                std::stringstream nextOutput;
-
-                logInternal(nextOutput, formattedString.c_str(), args, true);
-                printFormattedString(output, nextOutput.str().c_str(), capitalized, rightAligned, setSpaceCount);
-            }
-            else if(t != reserves.end()) {
+            if(t != reserves.end()) {
                 //its actually a reserve word
                 argumentType = t->second;
 
@@ -1124,7 +1125,7 @@ class DebugLogger {
                     }
                     break;
                 case '[':
-                    printVariable(outputStream, format, index);
+                    printVariable(outputStream, format, index, args);
                     break;
                 case '{':
                     printArgument(outputStream, format, index, args);
@@ -1146,7 +1147,7 @@ class DebugLogger {
          * Prints the prefix
          * Pretty much the same thing as printNext, but it will only accept variables
          * */
-        bool printNextPrefix(std::ostream& outputStream, const char* format, int& index) {
+        bool printNextPrefix(std::ostream& outputStream, const char* format, int& index, va_list& args) {
             int startIndex = index;
 
             switch (format[index]) {
@@ -1157,7 +1158,7 @@ class DebugLogger {
                     }
                     break;
                 case '[':
-                    printVariable(outputStream, format, index);
+                    printVariable(outputStream, format, index, args);
                     break;
                 default:
                     while(format[index] != '[' && format[index] != ']' && format[index] != '\\' && format[index]) {
@@ -1190,14 +1191,14 @@ class DebugLogger {
         /*
         * prints to the output stream the debug format
         */
-        void printPrefix(std::ostream& output, Level level) {
+        void printPrefix(std::ostream& output, Level level, va_list& args) {
             const char* format = prefixFormat[(int)level].c_str();
             int len = (int)prefixFormat[(int)level].size();
             int formatIndex = 0;
             int previousFormatIndex = -1;
 
             //process and print arguments
-            while(printNextPrefix(output, format, formatIndex) && formatIndex < len && formatIndex != previousFormatIndex) {
+            while(printNextPrefix(output, format, formatIndex, args) && formatIndex < len && formatIndex != previousFormatIndex) {
                 previousFormatIndex = formatIndex;
             }
         }

@@ -10,6 +10,7 @@
  * */
 int main() {
     DebugLogger logger;
+    logger.trace("output");
 
     //set prefix (prefix can only use internal variables and cannot deal with parameters)
     //prefixes can be set for each individual level, but this example won't deal with that as it's probably not an important feature
@@ -93,18 +94,18 @@ int main() {
     //recursive formatting allows you to apply formatting to "sub-format strings" within each formatted string
     //this allows you to easily create effective alignment properties within strings
     
-    //to use, create a new argument specifier with {}, but don't include a type or argument as parameters (the argument will not be outputtint or skipped)
+    //to use, create a new argument specifier with [], but don't include a type or argument as parameters (the argument will not be outputtint or skipped)
     //when a sub-format is used, arguments are ignored
     //use a single quote to indicate that it's a sub string, but do not terminate it with a single quote. The string ends when it reaches the closing bracket 
-    //basically: {'subformat}
-    logger.trace("(basic formatting) - {^'(recursive formatting)}");
+    //basically: ['subformat]
+    logger.trace("(basic formatting) - [^'(recursive formatting)]");
     
     //because the quotes don't need to be terminated, you don't need to escape the single quotes within the string
-    logger.trace("{'other single quotes don't have to be escaped: 'this'}");
+    logger.trace("['other single quotes don't have to be escaped: 'this']");
 
     //the formatting options applied to the outer format will be applied to the inner text output
-    logger.trace("{'this is a {^'sub {$str}}}", "FORMAT");
-    logger.trace("{$'THIS TEXT IS LOWERCASE {^'this text is also lowercase}}");
+    logger.trace("['this is a [^'sub {$str}]]", "FORMAT");
+    logger.trace("[$'THIS TEXT IS LOWERCASE [^'this text is also lowercase]]");
 
     //of course when you modify spaces, the spaces on the outer format will be applied to the result of the inner formats
     //this allows you to do alignment much better, here's an example
@@ -114,25 +115,27 @@ int main() {
     logger.trace("{25str}: {str}", "Colon", "ALIGNED spaces");
     //notice how the colon doesn't respond to the space the first string took up. In printf, this can be solved, but not in a quick way
     //to fix that in this logger program, use recursive formatting! Like so
-    logger.trace("{25'{str}:} {str}", "Normal colon", "ALIGNED spaces");
-    logger.trace("{25'{str}:} {str}", "Colon", "ALIGNED spaces");
+    logger.trace("[25'{str}:] {str}", "Normal colon", "ALIGNED spaces");
+    logger.trace("[25'{str}:] {str}", "Colon", "ALIGNED spaces");
     //notice how the text is still properly aligned, but the colon is attached to the first string instead of being in the middle
 
     //notice how the quotes are added on to the end 
-    logger.trace("{'this is a {^'sub format'}'} -> The quotes were added to the end of the formatting because you don't need a closing single quote");
+    logger.trace("['this is a [^'sub format']'] -> The quotes were added to the end of the formatting because you don't need a closing single quote");
 
     //you can use the escape back slash to print raw braces the same way as before
-    logger.trace("This are some braces in a sub format: {'\\{\\}\\[\\]\\}\\{\\]\\[}\\\\");
+    logger.trace("This are some braces in a sub format: ['\\{\\}\\[\\]\\}\\{\\]\\[]\\\\");
 
     //of course you can access all parameters and variables as previously shown. The arguments will still be consumed in the order they appear within the string.
-    logger.trace("{10'{str}:} [>12.th]", "Hours");
-    logger.trace("{10'{str}:} [>12.tm]", "Minutes");
-    logger.trace("{10'{str}:} [>12.ts]", "Seconds");
-    logger.trace("{10'{str}:} [>12.tl]", "Millis");
-    logger.trace("{10'{str}:} [>12.ti]", "Micros");
+    logger.trace("[10'{str}:] [>12.th]", "Hours");
+    logger.trace("[10'{str}:] [>12.tm]", "Minutes");
+    logger.trace("[10'{str}:] [>12.ts]", "Seconds");
+    logger.trace("[10'{str}:] [>12.tl]", "Millis");
+    logger.trace("[10'{str}:] [>12.ti]", "Micros");
 
     logger.trace("[lbc][rbc][bks]");
     logger.trace("{char}{char}{char}", '[', ']', '\\');
+
+    logger.trace("Total program runtime millis: [tl]");
 
     return 0;
 }
