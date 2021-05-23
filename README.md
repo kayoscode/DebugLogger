@@ -243,4 +243,4 @@ Alternatively, each of these characters can be accessed with parameters, and the
 logger.trace("[lbc][rbc]");
 logger.trace("{char}{char}", '[', ']');
 ```
-For more information on these internal variables, see
+For more information on these internal variables, see the variables section
