@@ -172,8 +172,6 @@ class DebugLogger {
 
             setPrefix("[3ln]~[.2etl] \\[[>05lmc]\\]: ");
             timer.reset();
-
-            std::cout << specialCharacters[5] << "\n";
         }
 
         ~DebugLogger() {
