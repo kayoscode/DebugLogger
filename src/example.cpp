@@ -13,7 +13,12 @@ int main() {
     /**
      * benchmark 
      * On linux, I get 1200ms for logger, and 600 for both printf and std::cout
+     * On windows, I get 9000ms for logger, for printf, I get 7700, and for cout, I get 17500
+     * For linux, printf and cout are about the same speed both significantly outperforming logger, but its not a big deal
+     * On windows, printf and logger are comparable, but cout is astoundingly slow
+
     logger.trace("Starting logger test");
+    logger.setPrefix("");
     for(int i = 0; i < 100000; ++i) {
         logger.trace("{int}", i);
     }

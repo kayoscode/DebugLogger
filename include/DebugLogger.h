@@ -333,7 +333,7 @@ class DebugLogger {
             messageCount[(int)Level::LEVEL_COUNT]++;
 
             //update timers (hrs, mins, seconds, millis, microseconds)
-            long long elapsedNanos = timer.nanoseconds();
+            uint64_t elapsedNanos = timer.nanoseconds();
             totalNanoseconds += elapsedNanos;
 
             timeVars[0] = (double)totalNanoseconds / 3.6e12;

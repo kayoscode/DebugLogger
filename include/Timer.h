@@ -22,24 +22,24 @@ class Timer{
             this->prevTP = std::chrono::high_resolution_clock::now();
         }
 
-        inline long nanoseconds(){
+        inline uint64_t nanoseconds(){
             auto now = std::chrono::high_resolution_clock::now();
-            return (long)std::chrono::duration_cast<std::chrono::nanoseconds>(now - prevTP).count();
+            return (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(now - prevTP).count();
         }
 
-        inline long microseconds(){
+        inline uint64_t microseconds(){
             auto now = std::chrono::high_resolution_clock::now();
-            return (long)std::chrono::duration_cast<std::chrono::microseconds>(now - prevTP).count();
+            return (uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(now - prevTP).count();
         }
 
-        inline long milliseconds(){
+        inline uint64_t milliseconds(){
             auto now = std::chrono::high_resolution_clock::now();
-            return (long)std::chrono::duration_cast<std::chrono::milliseconds>(now - prevTP).count();
+            return (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(now - prevTP).count();
         }
 
-        inline long seconds(){
+        inline uint64_t seconds(){
             auto now = std::chrono::high_resolution_clock::now();
-            return (long)std::chrono::duration_cast<std::chrono::seconds>(now - prevTP).count();
+            return (uint64_t)std::chrono::duration_cast<std::chrono::seconds>(now - prevTP).count();
         }
 
     private:
