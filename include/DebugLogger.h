@@ -5,10 +5,18 @@
 #include <ostream>
 #include <map>
 #include <string>
+#include <string.h>
 #include <stdarg.h>
 #include <sstream>
+#include <math.h>
 
 #include "Timer.h"
+
+#if defined(WIN32) | defined(__WIN32) || defined (_WIN32)
+#define SPRINTF(buffer, format, value) sprintf_s(buffer, 128, format, value)
+#elif defined(__unix__)
+#define SPRINTF(buffer, format, value) sprintf(buffer, format, value)
+#endif
 
 constexpr int OUTPUTFORMAT_DECIMAL = 0;
 constexpr int OUTPUTFORMAT_HEX = 1;
@@ -979,18 +987,18 @@ class DebugLogger {
             if(outputFormat == OUTPUTFORMAT_DECIMAL) {
                 if(unsignedMark) {
                     if(longlong) {
-                        len = sprintf_s(buffer, 128, "%llu", value);
+                        len = SPRINTF(buffer, "%llu", (unsigned long long int)value);
                     }
                     else {
-                        len = sprintf_s(buffer, 128, "%u", (int)value);
+                        len = SPRINTF(buffer, "%u", (int)value);
                     }
                 }
                 else {
                     if(longlong) {
-                        len = sprintf_s(buffer, 128, "%lld", value);
+                        len = SPRINTF(buffer, "%lld", (long long int)value);
                     }
                     else {
-                        len = sprintf_s(buffer, 128, "%d", (int)value);
+                        len = SPRINTF(buffer, "%d", (int)value);
                     }
                 }
             }

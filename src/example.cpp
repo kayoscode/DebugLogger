@@ -10,7 +10,30 @@
  * */
 int main() {
     DebugLogger logger;
-    logger.trace("output");
+    /**
+     * benchmark 
+     * On linux, I get 1200ms for logger, and 600 for both printf and std::cout
+    logger.trace("Starting logger test");
+    for(int i = 0; i < 100000; ++i) {
+        logger.trace("{int}", i);
+    }
+    logger.trace("Total time for logger: [tl]");
+    getchar();
+
+    logger.trace("starting printf test");
+    for(int i = 0; i < 100000; ++i) {
+        printf("%d\n", i);
+    }
+    logger.trace("Total time for printf: [etl]");
+    getchar();
+
+    logger.trace("Starting std::cout  test\n");
+    for(int i = 0; i < 100000; ++i) {
+        std::cout << "" << i << "\n";
+    }
+    logger.trace("std::cout time [etl]\n");
+    return 0;
+     * */
 
     //set prefix (prefix can only use internal variables and cannot deal with parameters)
     //prefixes can be set for each individual level, but this example won't deal with that as it's probably not an important feature
