@@ -494,8 +494,11 @@ class DebugLogger {
             return true;
         }
 
+        /**
+         * Returns if the character can be part of an identifier or not
+         * */
         bool isPartOfIdentifier(char c) {
-            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9');
         }
 
         /**

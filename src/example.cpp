@@ -66,9 +66,8 @@ int main() {
     //formatting options may be applied in any order as long as they don't conflict. The main one that could conflict is the fill zero formatter.
     //that one is marked with a 0, so what could happen is if you put that right after the space option, it will treat it as part of the number
     //heres how to use it properly and how to print in hex
-    //NOTE please include the binary for hex specifer in a way thats not attached to the type or variable, because that is conflicting
-    //at the very least, put a space between the x and the idnt
-    logger.trace("{>08X int}{x0long 16}", 0xDEAD, 0xBEEF);
+    //NOTE PLEASE PUT A SPACE BETWEEN THE BINARY AND HEX SYMBOLS because they can conflict with numbers, types, and identifiers
+    logger.trace("{>08X int}{0x long 16}", 0xDEAD, 0xBEEF);
     //by putting the zero specified before the space count, it treated it properly. As well as that, putting it after the x also works
     //notice how it doesn't matter where you put the space parameter as long as it cannot be confused with the type specifier or variable name. That's why there must be a space if you put it after
     //NOTE: the capitalization doesn't work on hex numbers. You have to use lowercase x or X to change the case.

@@ -17,6 +17,12 @@ logger.trace("[variableName]");
 ```
 That will print out the variable name and remove the brackets.
 
+A variable name must start with a letter or underscore. After that, it can include digits or letters/underscores
+
+VARIABLES ARE CASE SENSITIVE
+
+Please note that using formatters that start with a letter must have a space if placed before a number or identifier or they will not work properly
+because they conflict.
 
 When accessed, variables are case sensitive and must be lower case
 
