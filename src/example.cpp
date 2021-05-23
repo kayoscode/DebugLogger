@@ -12,13 +12,11 @@ int main() {
     DebugLogger logger;
     /**
      * benchmark 
-     * On linux, I get 1200ms for logger, and 600 for both printf and std::cout
+     * On linux, I get 1118ms for logger, and 772 for both printf and std::cout
      * On windows, I get 9000ms for logger, for printf, I get 7700, and for cout, I get 17500
      * For linux, printf and cout are about the same speed both significantly outperforming logger, but its not a big deal
      * On windows, printf and logger are comparable, but cout is astoundingly slow
-
     logger.trace("Starting logger test");
-    logger.setPrefix("");
     for(int i = 0; i < 100000; ++i) {
         logger.trace("{int}", i);
     }
@@ -27,18 +25,18 @@ int main() {
 
     logger.trace("starting printf test");
     for(int i = 0; i < 100000; ++i) {
-        printf("%d\n", i);
+        printf("%s~%.2f [%d]: %d\n", "TCE", .12f, i, i);
     }
     logger.trace("Total time for printf: [etl]");
     getchar();
 
     logger.trace("Starting std::cout  test\n");
     for(int i = 0; i < 100000; ++i) {
-        std::cout << "" << i << "\n";
+        std::cout << "TCE" << "~" << .12f << "[" << i << "]" << i << "\n";
     }
     logger.trace("std::cout time [etl]\n");
     return 0;
-     * */
+    */
 
     //set prefix (prefix can only use internal variables and cannot deal with parameters)
     //prefixes can be set for each individual level, but this example won't deal with that as it's probably not an important feature
