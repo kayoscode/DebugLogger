@@ -213,94 +213,110 @@ class DebugLogger {
             }
         }
 
-        void trace(const char* format, ...) {
+        int trace(const char* format, ...) {
+            int ret = 0;
             va_list args;
             va_start(args, format);
 
             //set trace vars
             updateLogger(Level::TRACE);
             setTrace();
-            logInternal(std::cout, format, args);
+            ret = logInternal(std::cout, format, args);
 
             va_end(args);
+            return ret;
         }
 
-        void traceToStream(std::ostream& output, const char* format, ...) {
+        int traceToStream(std::ostream& output, const char* format, ...) {
+            int ret = 0;
             va_list args;
             va_start(args, format);
 
             //set trace vars
             updateLogger(Level::TRACE);
             setTrace();
-            logInternal(output, format, args);
+            ret = logInternal(output, format, args);
 
             va_end(args);
+            return ret;
         }
 
-        void warning(const char* format, ...) {
+        int warning(const char* format, ...) {
+            int ret = 0;
             va_list args;
             va_start(args, format);
 
             updateLogger(Level::WARNING);
             setWarning();
-            logInternal(std::cout , format, args);
+            ret = logInternal(std::cout , format, args);
 
             va_end(args);
+            return ret;
         }
 
-        void warningToStream(std::ostream& output, const char* format, ...) {
+        int warningToStream(std::ostream& output, const char* format, ...) {
+            int ret = 0;
             va_list args;
             va_start(args, format);
 
             updateLogger(Level::WARNING);
             setWarning();
-            logInternal(output, format, args);
+            ret = logInternal(output, format, args);
 
             va_end(args);
+            return ret;
         }
 
-        void error(const char* format, ...) {
+        int error(const char* format, ...) {
+            int ret = 0;
             va_list args;
             va_start(args, format);
 
             updateLogger(Level::ERROR);
             setError();
-            logInternal(std::cout, format, args);
+            ret = logInternal(std::cout, format, args);
 
             va_end(args);
+            return ret;
         }
 
-        void errorToStream(std::ostream& output, const char* format, ...) {
+        int errorToStream(std::ostream& output, const char* format, ...) {
+            int ret = 0;
             va_list args;
             va_start(args, format);
 
             updateLogger(Level::ERROR);
             setError();
-            logInternal(output, format, args);
+            ret = logInternal(output, format, args);
 
             va_end(args);
+            return ret;
         }
 
-        void critical(const char* format, ...) {
+        int critical(const char* format, ...) {
+            int ret = 0;
             va_list(args);
             va_start(args, format);
 
             updateLogger(Level::CRITICAL_ERROR);
             setCritical();
-            logInternal(std::cout, format, args);
+            ret = logInternal(std::cout, format, args);
 
             va_end(args);
+            return ret;
         }
 
-        void criticalToStream(std::ostream& output, const char* format, ...) {
+        int criticalToStream(std::ostream& output, const char* format, ...) {
+            int ret = 0;
             va_list(args);
             va_start(args, format);
 
             updateLogger(Level::CRITICAL_ERROR);
             setCritical();
-            logInternal(output, format, args);
+            ret = logInternal(output, format, args);
 
             va_end(args);
+            return ret;
         }
 
         /**
@@ -416,7 +432,7 @@ class DebugLogger {
          * @param args the va arguments as a reference
          * @param level the current log level
          * */
-        inline void logInternal(std::ostream& output, const char* format, va_list& args, bool recursive = false) {
+        inline int logInternal(std::ostream& output, const char* format, va_list& args, bool recursive = false) {
             std::stringstream outputLine;
 
             //print prefix to message using only internal variables
@@ -439,6 +455,7 @@ class DebugLogger {
             }
 
             output << outputLine.str();
+            return (int)outputLine.str().size();
         }
 
         /**
