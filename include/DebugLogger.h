@@ -36,9 +36,9 @@ constexpr int CAPITALIZEDFORMAT_LOWER = 2;
  * */
 enum class Level {
     NONE,
-    TRACE,
-    WARNING,
-    ERROR,
+    LEVEL_TRACE,
+    LEVEL_WARNING,
+    LEVEL_ERROR,
     CRITICAL_ERROR,
     LEVEL_COUNT
 };
@@ -83,11 +83,11 @@ class DebugLogger {
                 messageCount[i] = 0;
             }
 
-            levelNames[(int)Level::TRACE] = "TCE";
-            levelNames[(int)Level::WARNING] = "WNG";
-            levelNames[(int)Level::ERROR] = "ERR";
+            levelNames[(int)Level::LEVEL_TRACE] = "TCE";
+            levelNames[(int)Level::LEVEL_WARNING] = "WNG";
+            levelNames[(int)Level::LEVEL_ERROR] = "ERR";
             levelNames[(int)Level::CRITICAL_ERROR] = "CRT";
-            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::TRACE];
+            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::LEVEL_TRACE];
 
             //add default variables
             //th = time hours
@@ -121,9 +121,9 @@ class DebugLogger {
             //en = error name
             //cn = critical name
             //ln = current level name
-            addInternalVariable("tn", &this->levelNames[(int)Level::TRACE], DebugVarType::STRING);
-            addInternalVariable("wn", &this->levelNames[(int)Level::WARNING], DebugVarType::STRING);
-            addInternalVariable("en", &this->levelNames[(int)Level::ERROR], DebugVarType::STRING);
+            addInternalVariable("tn", &this->levelNames[(int)Level::LEVEL_TRACE], DebugVarType::STRING);
+            addInternalVariable("wn", &this->levelNames[(int)Level::LEVEL_WARNING], DebugVarType::STRING);
+            addInternalVariable("en", &this->levelNames[(int)Level::LEVEL_ERROR], DebugVarType::STRING);
             addInternalVariable("cn", &this->levelNames[(int)Level::CRITICAL_ERROR], DebugVarType::STRING);
             addInternalVariable("ln", &this->levelNames[(int)Level::LEVEL_COUNT], DebugVarType::STRING);
 
@@ -135,9 +135,9 @@ class DebugLogger {
             //wmc warning message count
             //emc error message count
             //cmc critical messageCount
-            addInternalVariable("tmc", &messageCount[(int)Level::TRACE], DebugVarType::INTEGER64);
-            addInternalVariable("wmc", &messageCount[(int)Level::WARNING], DebugVarType::INTEGER64);
-            addInternalVariable("emc", &messageCount[(int)Level::ERROR], DebugVarType::INTEGER64);
+            addInternalVariable("tmc", &messageCount[(int)Level::LEVEL_TRACE], DebugVarType::INTEGER64);
+            addInternalVariable("wmc", &messageCount[(int)Level::LEVEL_WARNING], DebugVarType::INTEGER64);
+            addInternalVariable("emc", &messageCount[(int)Level::LEVEL_ERROR], DebugVarType::INTEGER64);
             addInternalVariable("cmc", &messageCount[(int)Level::CRITICAL_ERROR], DebugVarType::INTEGER64);
 
             //level message count
@@ -209,7 +209,8 @@ class DebugLogger {
             if(enableColor) {
                 //outputStream << "\033[34m"; //blue
                 //outputStream << "\033[32m"; //green
-                outputStream << "\033[1m\033[34m"; //dark blue
+                //outputStream << "\033[1m\033[34m"; //dark blue
+                outputStream << "\033[1m\033[32m"; //dark green
             }
         }
 
@@ -260,12 +261,12 @@ class DebugLogger {
          * */
         void setPrefix(const std::string& prefix, Level targetLevel = Level::LEVEL_COUNT) {
             if(targetLevel == Level::LEVEL_COUNT) {
-                this->prefixFormat[(int)Level::TRACE] = prefix;
-                this->prefixFormat[(int)Level::WARNING] = prefix;
-                this->prefixFormat[(int)Level::ERROR] = prefix;
+                this->prefixFormat[(int)Level::LEVEL_TRACE] = prefix;
+                this->prefixFormat[(int)Level::LEVEL_WARNING] = prefix;
+                this->prefixFormat[(int)Level::LEVEL_ERROR] = prefix;
                 this->prefixFormat[(int)Level::CRITICAL_ERROR] = prefix;
             }
-            else if(targetLevel < Level::LEVEL_COUNT && targetLevel >= Level::TRACE){
+            else if(targetLevel < Level::LEVEL_COUNT && targetLevel >= Level::LEVEL_TRACE){
                 this->prefixFormat[(int)targetLevel] = prefix;
             }
         }
@@ -276,10 +277,12 @@ class DebugLogger {
             va_start(args, format);
 
             //set trace vars
-            if(updateLogger(Level::TRACE)) {
+            if(updateLogger(Level::LEVEL_TRACE)) {
                 setTrace(*this->targetStream);
                 ret = logInternal(*this->targetStream, format, args);
             }
+
+            resetColor(*this->targetStream);
 
             va_end(args);
             return ret;
@@ -291,10 +294,12 @@ class DebugLogger {
             va_start(args, format);
 
             //set trace vars
-            if(updateLogger(Level::TRACE)) {
+            if(updateLogger(Level::LEVEL_TRACE)) {
                 setTrace(output);
                 ret = logInternal(output, format, args);
             }
+
+            resetColor(output);
 
             va_end(args);
             return ret;
@@ -305,10 +310,12 @@ class DebugLogger {
             va_list args;
             va_start(args, format);
 
-            if(updateLogger(Level::WARNING)) {
+            if(updateLogger(Level::LEVEL_WARNING)) {
                 setWarning(*this->targetStream);
                 ret = logInternal(*this->targetStream, format, args);
             }
+
+            resetColor(*this->targetStream);
 
             va_end(args);
             return ret;
@@ -319,10 +326,12 @@ class DebugLogger {
             va_list args;
             va_start(args, format);
 
-            if(updateLogger(Level::WARNING)) {
+            if(updateLogger(Level::LEVEL_WARNING)) {
                 setWarning(output);
                 ret = logInternal(output, format, args);
             }
+
+            resetColor(output);
 
             va_end(args);
             return ret;
@@ -333,10 +342,12 @@ class DebugLogger {
             va_list args;
             va_start(args, format);
 
-            if(updateLogger(Level::ERROR)) {
+            if(updateLogger(Level::LEVEL_ERROR)) {
                 setError(*this->targetStream);
                 ret = logInternal(*this->targetStream, format, args);
             }
+
+            resetColor(*this->targetStream);
 
             va_end(args);
             return ret;
@@ -347,10 +358,12 @@ class DebugLogger {
             va_list args;
             va_start(args, format);
 
-            if(updateLogger(Level::ERROR)) {
+            if(updateLogger(Level::LEVEL_ERROR)) {
                 setError(output);
                 ret = logInternal(output, format, args);
             }
+
+            resetColor(output);
 
             va_end(args);
             return ret;
@@ -366,6 +379,8 @@ class DebugLogger {
                 ret = logInternal(*this->targetStream, format, args);
             }
 
+            resetColor(*this->targetStream);
+
             va_end(args);
             return ret;
         }
@@ -379,6 +394,8 @@ class DebugLogger {
                 setCritical(output);
                 ret = logInternal(output, format, args);
             }
+
+            resetColor(output);
 
             va_end(args);
             return ret;
@@ -418,20 +435,20 @@ class DebugLogger {
         inline void setTrace(std::ostream& output) {
             //set trace vars
             setColorTrace(output);
-            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::TRACE];
-            currentMessageCount = messageCount[(int)Level::TRACE];
+            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::LEVEL_TRACE];
+            currentMessageCount = messageCount[(int)Level::LEVEL_TRACE];
         }
 
         inline void setWarning(std::ostream& output) {
             setColorWarning(output);
-            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::WARNING];
-            currentMessageCount = messageCount[(int)Level::WARNING];
+            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::LEVEL_WARNING];
+            currentMessageCount = messageCount[(int)Level::LEVEL_WARNING];
         }
 
         inline void setError(std::ostream& output) {
             setColorError(output);
-            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::ERROR];
-            currentMessageCount = messageCount[(int)Level::ERROR];
+            levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::LEVEL_ERROR];
+            currentMessageCount = messageCount[(int)Level::LEVEL_ERROR];
         }
 
         inline void setCritical(std::ostream& output) {
