@@ -163,5 +163,18 @@ int main() {
 
     logger.trace("Total program runtime millis: [tl]");
 
+    logger.warning("[10'{str}:] [>12.th]", "Hours");
+    logger.warning("[10'{str}:] [>12.tm]", "Minutes");
+    logger.warning("[10'{str}:] [>12.ts]", "Seconds");
+    logger.warning("[10'{str}:] [>12.tl]", "Millis");
+    logger.warning("[10'{str}:] [>12.ti]", "Micros");
+
+    //errors
+    logger.error("[10'{str}:] [>12.th]", "Hours");
+    logger.error("[10'{str}:] [>12.tm]", "Minutes");
+    logger.error("[10'{str}:] [>12.ts]", "Seconds");
+    logger.error("[10'{str}:] [>12.tl]", "Millis");
+    logger.error("[10'{str}:] [>12.ti]", "Micros");
+
     return 0;
 }

@@ -73,7 +73,8 @@ enum class DebugVarType {
 class DebugLogger {
     public:
         DebugLogger(const std::string& loggerName = "Debug:") 
-            :level(level)
+            :level(level),
+            targetStream(&std::cout)
         {
             this->level = Level::CRITICAL_ERROR;
             totalNanoseconds = 0;
@@ -185,6 +186,10 @@ class DebugLogger {
         ~DebugLogger() {
         }
 
+        void setTargetOutput(std::ostream* outputStream) {
+            this->targetStream = outputStream;
+        }
+
         /**
          * Returns the level of the debugger
          * */
@@ -198,6 +203,52 @@ class DebugLogger {
          * */
         void setLevel(Level newLevel) {
             this->level = newLevel;
+        }
+
+        void setColorTrace(std::ostream& outputStream) {
+            if(enableColor) {
+                //outputStream << "\033[34m"; //blue
+                //outputStream << "\033[32m"; //green
+                outputStream << "\033[1m\033[34m"; //dark blue
+            }
+        }
+
+        void setColorWarning(std::ostream& outputStream) {
+            if(enableColor) {
+                //outputStream << "\033[33m"; //yellow
+                outputStream << "\033[1m\033[33m"; //dark yellow
+            }
+        }
+
+        void setColorError(std::ostream& outputStream) {
+            if(enableColor) {
+                //outputStream << "\033[31m"; //red
+                outputStream << "\033[1m\033[31m"; //dark red
+            }
+        }
+
+        void setColorCritical(std::ostream& outputStream) {
+            if(enableColor) {
+                outputStream << "\033[1m\033[31m"; //dark red
+            }
+        }
+
+        void resetColor(std::ostream& outputStream) {
+            if(enableColor) {
+                outputStream << "\033[0m";
+            }
+        }
+
+        void setColorEnabled() {
+            this->enableColor = true;
+        }
+
+        void setColorDisabled() {
+            this->enableColor = false;
+        }
+
+        bool getColorEnabled() {
+            return this->enableColor;
         }
         
         /**
@@ -225,9 +276,10 @@ class DebugLogger {
             va_start(args, format);
 
             //set trace vars
-            updateLogger(Level::TRACE);
-            setTrace();
-            ret = logInternal(std::cout, format, args);
+            if(updateLogger(Level::TRACE)) {
+                setTrace(*this->targetStream);
+                ret = logInternal(*this->targetStream, format, args);
+            }
 
             va_end(args);
             return ret;
@@ -239,9 +291,10 @@ class DebugLogger {
             va_start(args, format);
 
             //set trace vars
-            updateLogger(Level::TRACE);
-            setTrace();
-            ret = logInternal(output, format, args);
+            if(updateLogger(Level::TRACE)) {
+                setTrace(output);
+                ret = logInternal(output, format, args);
+            }
 
             va_end(args);
             return ret;
@@ -252,9 +305,10 @@ class DebugLogger {
             va_list args;
             va_start(args, format);
 
-            updateLogger(Level::WARNING);
-            setWarning();
-            ret = logInternal(std::cout , format, args);
+            if(updateLogger(Level::WARNING)) {
+                setWarning(*this->targetStream);
+                ret = logInternal(*this->targetStream, format, args);
+            }
 
             va_end(args);
             return ret;
@@ -265,9 +319,10 @@ class DebugLogger {
             va_list args;
             va_start(args, format);
 
-            updateLogger(Level::WARNING);
-            setWarning();
-            ret = logInternal(output, format, args);
+            if(updateLogger(Level::WARNING)) {
+                setWarning(output);
+                ret = logInternal(output, format, args);
+            }
 
             va_end(args);
             return ret;
@@ -278,9 +333,10 @@ class DebugLogger {
             va_list args;
             va_start(args, format);
 
-            updateLogger(Level::ERROR);
-            setError();
-            ret = logInternal(std::cout, format, args);
+            if(updateLogger(Level::ERROR)) {
+                setError(*this->targetStream);
+                ret = logInternal(*this->targetStream, format, args);
+            }
 
             va_end(args);
             return ret;
@@ -291,9 +347,10 @@ class DebugLogger {
             va_list args;
             va_start(args, format);
 
-            updateLogger(Level::ERROR);
-            setError();
-            ret = logInternal(output, format, args);
+            if(updateLogger(Level::ERROR)) {
+                setError(output);
+                ret = logInternal(output, format, args);
+            }
 
             va_end(args);
             return ret;
@@ -304,9 +361,10 @@ class DebugLogger {
             va_list(args);
             va_start(args, format);
 
-            updateLogger(Level::CRITICAL_ERROR);
-            setCritical();
-            ret = logInternal(std::cout, format, args);
+            if(updateLogger(Level::CRITICAL_ERROR)) {
+                setCritical(*this->targetStream);
+                ret = logInternal(*this->targetStream, format, args);
+            }
 
             va_end(args);
             return ret;
@@ -317,9 +375,10 @@ class DebugLogger {
             va_list(args);
             va_start(args, format);
 
-            updateLogger(Level::CRITICAL_ERROR);
-            setCritical();
-            ret = logInternal(output, format, args);
+            if(updateLogger(Level::CRITICAL_ERROR)) {
+                setCritical(output);
+                ret = logInternal(output, format, args);
+            }
 
             va_end(args);
             return ret;
@@ -328,46 +387,55 @@ class DebugLogger {
         /**
          * Updates times and message counts
          * */
-        inline void updateLogger(Level level) {
-            messageCount[(int)level]++;
-            messageCount[(int)Level::LEVEL_COUNT]++;
+        inline bool updateLogger(Level level) {
+            if(this->level >= level) {
+                messageCount[(int)level]++;
+                messageCount[(int)Level::LEVEL_COUNT]++;
 
-            //update timers (hrs, mins, seconds, millis, microseconds)
-            uint64_t elapsedNanos = timer.nanoseconds();
-            totalNanoseconds += elapsedNanos;
+                //update timers (hrs, mins, seconds, millis, microseconds)
+                uint64_t elapsedNanos = timer.nanoseconds();
+                totalNanoseconds += elapsedNanos;
 
-            timeVars[0] = (double)totalNanoseconds / 3.6e12;
-            timeVars[1] = (double)totalNanoseconds / 6e10;
-            timeVars[2] = (double)totalNanoseconds / 1e9;
-            timeVars[3] = (double)totalNanoseconds / 1e6;
-            timeVars[4] = (double)totalNanoseconds / 1000;
+                timeVars[0] = (double)totalNanoseconds / 3.6e12;
+                timeVars[1] = (double)totalNanoseconds / 6e10;
+                timeVars[2] = (double)totalNanoseconds / 1e9;
+                timeVars[3] = (double)totalNanoseconds / 1e6;
+                timeVars[4] = (double)totalNanoseconds / 1000;
 
-            elapsedTimeVars[0] = (double)elapsedNanos / 3.6e12;
-            elapsedTimeVars[1] = (double)elapsedNanos / 6e10;
-            elapsedTimeVars[2] = (double)elapsedNanos / 1e9;
-            elapsedTimeVars[3] = (double)elapsedNanos / 1e6;
-            elapsedTimeVars[4] = (double)elapsedNanos / 1000;
+                elapsedTimeVars[0] = (double)elapsedNanos / 3.6e12;
+                elapsedTimeVars[1] = (double)elapsedNanos / 6e10;
+                elapsedTimeVars[2] = (double)elapsedNanos / 1e9;
+                elapsedTimeVars[3] = (double)elapsedNanos / 1e6;
+                elapsedTimeVars[4] = (double)elapsedNanos / 1000;
 
-            timer.reset();
+                timer.reset();
+                return true;
+            }
+
+            return false;
         }
 
-        inline void setTrace() {
+        inline void setTrace(std::ostream& output) {
             //set trace vars
+            setColorTrace(output);
             levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::TRACE];
             currentMessageCount = messageCount[(int)Level::TRACE];
         }
 
-        inline void setWarning() {
+        inline void setWarning(std::ostream& output) {
+            setColorWarning(output);
             levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::WARNING];
             currentMessageCount = messageCount[(int)Level::WARNING];
         }
 
-        inline void setError() {
+        inline void setError(std::ostream& output) {
+            setColorError(output);
             levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::ERROR];
             currentMessageCount = messageCount[(int)Level::ERROR];
         }
 
-        inline void setCritical() {
+        inline void setCritical(std::ostream& output) {
+            setColorCritical(output);
             levelNames[(int)Level::LEVEL_COUNT] = levelNames[(int)Level::CRITICAL_ERROR];
             currentMessageCount = messageCount[(int)Level::CRITICAL_ERROR];
         }
@@ -1323,6 +1391,16 @@ class DebugLogger {
          * Timer to keep track of time and changes in it
          * */
         Timer timer;
+
+        /**
+         * Whether it prints colors to the scren
+         * */
+        bool enableColor = true;
+
+        /**
+         * The target output stream
+         * */
+        std::ostream* targetStream;
 };
 
 #endif
