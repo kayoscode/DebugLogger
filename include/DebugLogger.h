@@ -1,8 +1,6 @@
 #ifndef INCLUDE_DEBUG_LOGGER_H
 #define INCLUDE_DEBUG_LOGGER_H
 
-#define TEST
-
 #include <iostream>
 #include <ostream>
 #include <map>
