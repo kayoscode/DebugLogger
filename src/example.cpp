@@ -1,6 +1,7 @@
 #include <iostream>
 #include "DebugLogger.h"
 #include <sstream>
+#include <fstream>
 
 //example of using debug logger
 
@@ -9,7 +10,9 @@
  * The cmake code here is for compiling this demo
  * */
 int main() {
+    std::ofstream output("./file.txt");
     DebugLogger logger;
+    logger.setTargetOutputStream(&output);
     /**
      * benchmark 
      * On linux, I get 1118ms for logger, and 772 for both printf and std::cout

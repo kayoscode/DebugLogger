@@ -73,7 +73,8 @@ enum class DebugVarType {
 class DebugLogger {
     public:
         DebugLogger(const std::string& loggerName = "Debug:") 
-            :level(level)
+            :level(level),
+            targetOutput(&std::cout)
         {
             this->level = Level::CRITICAL_ERROR;
             totalNanoseconds = 0;
@@ -227,7 +228,7 @@ class DebugLogger {
             //set trace vars
             updateLogger(Level::TRACE);
             setTrace();
-            ret = logInternal(std::cout, format, args);
+            ret = logInternal(*targetOutput, format, args);
 
             va_end(args);
             return ret;
@@ -254,7 +255,7 @@ class DebugLogger {
 
             updateLogger(Level::WARNING);
             setWarning();
-            ret = logInternal(std::cout , format, args);
+            ret = logInternal(*targetOutput, format, args);
 
             va_end(args);
             return ret;
@@ -280,7 +281,7 @@ class DebugLogger {
 
             updateLogger(Level::ERROR);
             setError();
-            ret = logInternal(std::cout, format, args);
+            ret = logInternal(*targetOutput, format, args);
 
             va_end(args);
             return ret;
@@ -306,7 +307,7 @@ class DebugLogger {
 
             updateLogger(Level::CRITICAL_ERROR);
             setCritical();
-            ret = logInternal(std::cout, format, args);
+            ret = logInternal(*targetOutput, format, args);
 
             va_end(args);
             return ret;
@@ -323,6 +324,10 @@ class DebugLogger {
 
             va_end(args);
             return ret;
+        }
+
+        void setTargetOutputStream(std::ostream* output) {
+            targetOutput = output;
         }
 
         /**
@@ -1323,6 +1328,11 @@ class DebugLogger {
          * Timer to keep track of time and changes in it
          * */
         Timer timer;
+
+        /**
+         * The default target output 
+         * */
+        std::ostream* targetOutput;
 };
 
 #endif
