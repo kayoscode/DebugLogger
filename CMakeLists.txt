@@ -8,7 +8,7 @@ file(GLOB SRC
     "include/*.h"
 )
 
-add_executable(${PROJ_NAME}
+add_library(${PROJ_NAME}
     "${SRC}"
 )
 
