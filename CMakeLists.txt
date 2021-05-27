@@ -12,4 +12,4 @@ add_library(${PROJ_NAME}
     "${SRC}"
 )
 
-target_include_directories("${PROJ_NAME}" PRIVATE ${PROJECT_SOURCE_DIR}/./include)
+target_include_directories("${PROJ_NAME}" PUBLIC ${PROJECT_SOURCE_DIR}/include)

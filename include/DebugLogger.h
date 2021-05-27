@@ -405,7 +405,7 @@ class DebugLogger {
          * Updates times and message counts
          * */
         inline bool updateLogger(Level level) {
-            if(this->level >= level) {
+            if(this->level <= level) {
                 messageCount[(int)level]++;
                 messageCount[(int)Level::LEVEL_COUNT]++;
 
@@ -1419,5 +1419,7 @@ class DebugLogger {
          * */
         std::ostream* targetStream;
 };
+
+extern DebugLogger debugLogger;
 
 #endif

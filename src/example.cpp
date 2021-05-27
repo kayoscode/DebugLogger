@@ -3,12 +3,13 @@
 #include <sstream>
 
 //example of using debug logger
+DebugLogger debugLogger;
 
 /**
  * This is a header only library, so all you have to do is copy the headers into your project and you can use it!
  * The cmake code here is for compiling this demo
  * */
-int main() {
+int debuggerCode() {
     DebugLogger logger;
     /**
      * benchmark 
