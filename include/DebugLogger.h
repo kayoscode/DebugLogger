@@ -15,7 +15,7 @@
 
 #if defined(WIN32) | defined(__WIN32) || defined (_WIN32)
 #define SPRINTF(buffer, format, value) sprintf_s(buffer, 128, format, value)
-#elif defined(__unix__)
+#elif defined(__unix__) || defined(__APPLE__)
 #define SPRINTF(buffer, format, value) sprintf(buffer, format, value)
 #endif
 
