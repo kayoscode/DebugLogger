@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <sstream>
 #include <math.h>
+#include <cmath>
 
 #include "Timer.h"
 
@@ -1394,7 +1395,7 @@ class DebugLogger {
         std::map<std::string, Token::TokenType> reserves;
 
         //an array of level names
-        std::string levelNames[(int)Level::LEVEL_COUNT];
+        std::string levelNames[(int)Level::LEVEL_COUNT + 1];
 
         /**
          * A string representing the prefix of each debug
