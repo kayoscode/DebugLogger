@@ -73,10 +73,11 @@ enum class DebugVarType {
  * */
 class DebugLogger {
     public:
-        DebugLogger(const std::string& loggerName = "Debug:") 
+        DebugLogger(const std::string& loggerName = "Debug") 
             :level(level),
             targetStream(&std::cout)
         {
+            this->loggerName = loggerName;
             this->level = Level::CRITICAL_ERROR;
             totalNanoseconds = 0;
 
@@ -405,9 +406,9 @@ class DebugLogger {
         /**
          * Updates times and message counts
          * */
-        inline bool updateLogger(Level level) {
-            if(this->level <= level) {
-                messageCount[(int)level]++;
+        inline bool updateLogger(Level lev) {
+            if(this->level <= lev) {
+                messageCount[(int)lev]++;
                 messageCount[(int)Level::LEVEL_COUNT]++;
 
                 //update timers (hrs, mins, seconds, millis, microseconds)
@@ -1033,10 +1034,10 @@ class DebugLogger {
                 char next = toPrint[i];
 
                 if(cap == CAPITALIZEDFORMAT_CAPS) {
-                    next = std::toupper(next);
+                    next = (char)std::toupper(next);
                 }
                 else if(cap == CAPITALIZEDFORMAT_LOWER) {
-                    next = std::tolower(next);
+                    next = (char)std::tolower(next);
                 }
 
                 buffer[i] = next;
@@ -1126,10 +1127,10 @@ class DebugLogger {
 
         void printFormattedChar(std::ostream& output, char value, int cap, bool right, int space) {
             if(cap == 1) {
-                value = std::toupper(value);
+                value = (char)std::toupper(value);
             }
             else if(cap == 2) {
-                value = std::tolower(value);
+                value = (char)std::tolower(value);
             }
 
             if(right) {
@@ -1171,7 +1172,7 @@ class DebugLogger {
 
                 if(argumentType == Token::TokenType::SIGNED_CHAR) {
                     //collect char from VA args and print
-                    char ch = va_arg(args, int);
+                    char ch = (char)va_arg(args, int);
                     printFormattedChar(output, ch, capitalized, rightAligned, setSpaceCount);
                 }
                 else if(argumentType == Token::TokenType::SIGNED_INT) {
