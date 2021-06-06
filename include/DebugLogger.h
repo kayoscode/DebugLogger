@@ -73,7 +73,7 @@ enum class DebugVarType {
  * */
 class DebugLogger {
     public:
-        DebugLogger(const std::string& loggerName = "Debug") 
+        DebugLogger(const std::string& loggerName = "Debug", Level level = Level::LEVEL_TRACE) 
             :level(level),
             targetStream(&std::cout)
         {
@@ -1421,7 +1421,5 @@ class DebugLogger {
          * */
         std::ostream* targetStream;
 };
-
-extern DebugLogger debugLogger;
 
 #endif
