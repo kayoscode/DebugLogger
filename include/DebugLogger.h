@@ -78,7 +78,6 @@ class DebugLogger {
             targetStream(&std::cout)
         {
             this->loggerName = loggerName;
-            this->level = Level::CRITICAL_ERROR;
             totalNanoseconds = 0;
 
             for(int i = 0; i <= (int)Level::LEVEL_COUNT; ++i) {
